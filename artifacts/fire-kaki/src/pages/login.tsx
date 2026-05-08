@@ -45,12 +45,9 @@ export default function LoginPage() {
         </div>
 
         <div className="bg-white border border-stone-200 rounded-2xl p-8 shadow-sm">
-          <h1 className="font-serif text-3xl font-bold text-stone-900 mb-2">
+          <h1 className="font-serif text-3xl font-bold text-stone-900 mb-8">
             Welcome back
           </h1>
-          <p className="text-stone-600 mb-8 text-sm">
-            Sign in to your role vault.
-          </p>
 
           <form onSubmit={onSubmit} className="space-y-5">
             <div>
