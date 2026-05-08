@@ -4,6 +4,7 @@ import {
   text,
   timestamp,
   boolean,
+  doublePrecision,
 } from "drizzle-orm/pg-core";
 
 export const volunteerUsers = pgTable("volunteer_users", {
@@ -16,6 +17,9 @@ export const volunteerUsers = pgTable("volunteer_users", {
   emailVerifiedAt: timestamp("email_verified_at"),
   verificationToken: text("verification_token"),
   verificationTokenExpiresAt: timestamp("verification_token_expires_at"),
+  lastLat: doublePrecision("last_lat"),
+  lastLng: doublePrecision("last_lng"),
+  lastSeenAt: timestamp("last_seen_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

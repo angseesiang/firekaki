@@ -98,6 +98,94 @@ export interface AdminCreatedUser {
   role: AdminRole;
 }
 
+export type EmergencyType = (typeof EmergencyType)[keyof typeof EmergencyType];
+
+export const EmergencyType = {
+  minor: "minor",
+  major: "major",
+} as const;
+
+export type EmergencyStatus =
+  (typeof EmergencyStatus)[keyof typeof EmergencyStatus];
+
+export const EmergencyStatus = {
+  active: "active",
+  deactivated: "deactivated",
+  resolved: "resolved",
+} as const;
+
+export type EmergencyMyResponse =
+  | (typeof EmergencyMyResponse)[keyof typeof EmergencyMyResponse]
+  | null;
+
+export const EmergencyMyResponse = {
+  accepted: "accepted",
+  declined: "declined",
+} as const;
+
+export interface Emergency {
+  id: number;
+  type: EmergencyType;
+  status: EmergencyStatus;
+  creatorRole: Role;
+  creatorUserId: number;
+  creatorName: string;
+  description?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  address?: string | null;
+  createdAt: string;
+  deactivatedAt?: string | null;
+  /** Volunteer-relative distance in metres, only present in volunteer scope. */
+  distanceM?: number | null;
+  myResponse?: EmergencyMyResponse;
+}
+
+export interface EmergencyList {
+  emergencies: Emergency[];
+}
+
+export interface CreateEmergencyRequest {
+  type: EmergencyType;
+  description?: string;
+  lat?: number;
+  lng?: number;
+  address?: string;
+}
+
+export type RespondEmergencyRequestStatus =
+  (typeof RespondEmergencyRequestStatus)[keyof typeof RespondEmergencyRequestStatus];
+
+export const RespondEmergencyRequestStatus = {
+  accepted: "accepted",
+  declined: "declined",
+} as const;
+
+export interface RespondEmergencyRequest {
+  status: RespondEmergencyRequestStatus;
+}
+
+export interface PendingVulnerable {
+  id: number;
+  email: string;
+  name: string;
+  address: string;
+  nokName: string;
+  nokRelation: string;
+  nokContact: string;
+  emailVerified: boolean;
+  createdAt: string;
+}
+
+export interface PendingVulnerableList {
+  items: PendingVulnerable[];
+}
+
+export interface UpdateLocationRequest {
+  lat: number;
+  lng: number;
+}
+
 export interface SessionUser {
   id: number;
   email: string;

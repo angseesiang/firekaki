@@ -19,13 +19,19 @@ import type {
 import type {
   AdminCreateUserRequest,
   AdminCreatedUser,
+  CreateEmergencyRequest,
   EmailVerified,
+  Emergency,
+  EmergencyList,
   ErrorResponse,
   HealthStatus,
   LoginRequest,
   OkResponse,
+  PendingVulnerableList,
+  RespondEmergencyRequest,
   SessionUser,
   SignupRequest,
+  UpdateLocationRequest,
   VerifyEmailParams,
 } from "./api.schemas";
 
@@ -624,6 +630,584 @@ export const useAdminCreateUser = <
   TContext
 > => {
   return useMutation(getAdminCreateUserMutationOptions(options));
+};
+
+/**
+ * @summary List emergencies — scope depends on caller's role
+ */
+export const getListEmergenciesUrl = () => {
+  return `/api/emergencies`;
+};
+
+export const listEmergencies = async (
+  options?: RequestInit,
+): Promise<EmergencyList> => {
+  return customFetch<EmergencyList>(getListEmergenciesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListEmergenciesQueryKey = () => {
+  return [`/api/emergencies`] as const;
+};
+
+export const getListEmergenciesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listEmergencies>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listEmergencies>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListEmergenciesQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listEmergencies>>> = ({
+    signal,
+  }) => listEmergencies({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listEmergencies>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListEmergenciesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listEmergencies>>
+>;
+export type ListEmergenciesQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary List emergencies — scope depends on caller's role
+ */
+
+export function useListEmergencies<
+  TData = Awaited<ReturnType<typeof listEmergencies>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listEmergencies>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListEmergenciesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create an emergency. Vulnerable creates Minor; Reviewer/Admin creates Major.
+ */
+export const getCreateEmergencyUrl = () => {
+  return `/api/emergencies`;
+};
+
+export const createEmergency = async (
+  createEmergencyRequest: CreateEmergencyRequest,
+  options?: RequestInit,
+): Promise<Emergency> => {
+  return customFetch<Emergency>(getCreateEmergencyUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createEmergencyRequest),
+  });
+};
+
+export const getCreateEmergencyMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createEmergency>>,
+    TError,
+    { data: BodyType<CreateEmergencyRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createEmergency>>,
+  TError,
+  { data: BodyType<CreateEmergencyRequest> },
+  TContext
+> => {
+  const mutationKey = ["createEmergency"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createEmergency>>,
+    { data: BodyType<CreateEmergencyRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createEmergency(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateEmergencyMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createEmergency>>
+>;
+export type CreateEmergencyMutationBody = BodyType<CreateEmergencyRequest>;
+export type CreateEmergencyMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Create an emergency. Vulnerable creates Minor; Reviewer/Admin creates Major.
+ */
+export const useCreateEmergency = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createEmergency>>,
+    TError,
+    { data: BodyType<CreateEmergencyRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createEmergency>>,
+  TError,
+  { data: BodyType<CreateEmergencyRequest> },
+  TContext
+> => {
+  return useMutation(getCreateEmergencyMutationOptions(options));
+};
+
+/**
+ * @summary Admin only — deactivate an emergency
+ */
+export const getDeactivateEmergencyUrl = (id: number) => {
+  return `/api/emergencies/${id}/deactivate`;
+};
+
+export const deactivateEmergency = async (
+  id: number,
+  options?: RequestInit,
+): Promise<Emergency> => {
+  return customFetch<Emergency>(getDeactivateEmergencyUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getDeactivateEmergencyMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deactivateEmergency>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deactivateEmergency>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deactivateEmergency"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deactivateEmergency>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deactivateEmergency(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeactivateEmergencyMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deactivateEmergency>>
+>;
+
+export type DeactivateEmergencyMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Admin only — deactivate an emergency
+ */
+export const useDeactivateEmergency = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deactivateEmergency>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deactivateEmergency>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeactivateEmergencyMutationOptions(options));
+};
+
+/**
+ * @summary Volunteer (or Admin/Reviewer for testing) accepts or declines an emergency
+ */
+export const getRespondEmergencyUrl = (id: number) => {
+  return `/api/emergencies/${id}/respond`;
+};
+
+export const respondEmergency = async (
+  id: number,
+  respondEmergencyRequest: RespondEmergencyRequest,
+  options?: RequestInit,
+): Promise<OkResponse> => {
+  return customFetch<OkResponse>(getRespondEmergencyUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(respondEmergencyRequest),
+  });
+};
+
+export const getRespondEmergencyMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof respondEmergency>>,
+    TError,
+    { id: number; data: BodyType<RespondEmergencyRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof respondEmergency>>,
+  TError,
+  { id: number; data: BodyType<RespondEmergencyRequest> },
+  TContext
+> => {
+  const mutationKey = ["respondEmergency"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof respondEmergency>>,
+    { id: number; data: BodyType<RespondEmergencyRequest> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return respondEmergency(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RespondEmergencyMutationResult = NonNullable<
+  Awaited<ReturnType<typeof respondEmergency>>
+>;
+export type RespondEmergencyMutationBody = BodyType<RespondEmergencyRequest>;
+export type RespondEmergencyMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Volunteer (or Admin/Reviewer for testing) accepts or declines an emergency
+ */
+export const useRespondEmergency = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof respondEmergency>>,
+    TError,
+    { id: number; data: BodyType<RespondEmergencyRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof respondEmergency>>,
+  TError,
+  { id: number; data: BodyType<RespondEmergencyRequest> },
+  TContext
+> => {
+  return useMutation(getRespondEmergencyMutationOptions(options));
+};
+
+/**
+ * @summary Reviewer/Admin — list vulnerable accounts awaiting verification
+ */
+export const getListPendingVulnerableUrl = () => {
+  return `/api/reviewer/pending-vulnerable`;
+};
+
+export const listPendingVulnerable = async (
+  options?: RequestInit,
+): Promise<PendingVulnerableList> => {
+  return customFetch<PendingVulnerableList>(getListPendingVulnerableUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListPendingVulnerableQueryKey = () => {
+  return [`/api/reviewer/pending-vulnerable`] as const;
+};
+
+export const getListPendingVulnerableQueryOptions = <
+  TData = Awaited<ReturnType<typeof listPendingVulnerable>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listPendingVulnerable>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListPendingVulnerableQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listPendingVulnerable>>
+  > = ({ signal }) => listPendingVulnerable({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listPendingVulnerable>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListPendingVulnerableQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listPendingVulnerable>>
+>;
+export type ListPendingVulnerableQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Reviewer/Admin — list vulnerable accounts awaiting verification
+ */
+
+export function useListPendingVulnerable<
+  TData = Awaited<ReturnType<typeof listPendingVulnerable>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listPendingVulnerable>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListPendingVulnerableQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Reviewer/Admin — mark a vulnerable account as verified
+ */
+export const getVerifyVulnerableUrl = (id: number) => {
+  return `/api/reviewer/vulnerable/${id}/verify`;
+};
+
+export const verifyVulnerable = async (
+  id: number,
+  options?: RequestInit,
+): Promise<OkResponse> => {
+  return customFetch<OkResponse>(getVerifyVulnerableUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getVerifyVulnerableMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof verifyVulnerable>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof verifyVulnerable>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["verifyVulnerable"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof verifyVulnerable>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return verifyVulnerable(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type VerifyVulnerableMutationResult = NonNullable<
+  Awaited<ReturnType<typeof verifyVulnerable>>
+>;
+
+export type VerifyVulnerableMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Reviewer/Admin — mark a vulnerable account as verified
+ */
+export const useVerifyVulnerable = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof verifyVulnerable>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof verifyVulnerable>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getVerifyVulnerableMutationOptions(options));
+};
+
+/**
+ * @summary Volunteer — share current GPS location
+ */
+export const getUpdateVolunteerLocationUrl = () => {
+  return `/api/volunteer/location`;
+};
+
+export const updateVolunteerLocation = async (
+  updateLocationRequest: UpdateLocationRequest,
+  options?: RequestInit,
+): Promise<OkResponse> => {
+  return customFetch<OkResponse>(getUpdateVolunteerLocationUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateLocationRequest),
+  });
+};
+
+export const getUpdateVolunteerLocationMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateVolunteerLocation>>,
+    TError,
+    { data: BodyType<UpdateLocationRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateVolunteerLocation>>,
+  TError,
+  { data: BodyType<UpdateLocationRequest> },
+  TContext
+> => {
+  const mutationKey = ["updateVolunteerLocation"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateVolunteerLocation>>,
+    { data: BodyType<UpdateLocationRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return updateVolunteerLocation(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateVolunteerLocationMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateVolunteerLocation>>
+>;
+export type UpdateVolunteerLocationMutationBody =
+  BodyType<UpdateLocationRequest>;
+export type UpdateVolunteerLocationMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Volunteer — share current GPS location
+ */
+export const useUpdateVolunteerLocation = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateVolunteerLocation>>,
+    TError,
+    { data: BodyType<UpdateLocationRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateVolunteerLocation>>,
+  TError,
+  { data: BodyType<UpdateLocationRequest> },
+  TContext
+> => {
+  return useMutation(getUpdateVolunteerLocationMutationOptions(options));
 };
 
 /**

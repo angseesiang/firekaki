@@ -27,7 +27,9 @@ A neighbour-powered first-response network for Singapore's most vulnerable — p
 - API server routes: `artifacts/api-server/src/routes/{health,auth}.ts`
 - Session middleware: `artifacts/api-server/src/lib/session.ts` (express-session + connect-pg-simple)
 - Frontend auth hooks: `artifacts/fire-kaki/src/lib/auth.ts`
-- Frontend pages: `artifacts/fire-kaki/src/pages/{home,login,signup,dashboard}.tsx`
+- Frontend pages: `artifacts/fire-kaki/src/pages/{home,login,signup,dashboard,admin,verify}.tsx`
+- Emergency / reviewer / volunteer routes: `artifacts/api-server/src/routes/{emergencies,reviewer,volunteer}.ts`
+- Shared auth middleware: `artifacts/api-server/src/lib/middleware.ts`
 - Theme tokens: `artifacts/fire-kaki/src/index.css` (uses `--primary` for the ember red)
 
 ## Architecture decisions
@@ -44,6 +46,14 @@ A neighbour-powered first-response network for Singapore's most vulnerable — p
 - `/login` — sign in with email + password + role
 - `/dashboard` — post-login landing showing role, vault, and verification status
 - `/admin` — Admin-only page to create Reviewer or Admin accounts
+- `/dashboard` renders role-tiered panels (inheritance: Admin ⊃ Reviewer ⊃ {Volunteer, Vulnerable}; Volunteer is standalone). Vulnerable → request Minor + own history. Volunteer → GPS share + nearby (≤2 km) active emergencies + accept/decline. Reviewer → pending verifications + activate Major + see all emergencies (read-only). Admin → same as Reviewer + deactivate emergencies + Manage users link.
+
+## Emergency model
+
+- `emergencies` table: type (minor|major), status (active|deactivated|resolved), creator role/id/name, lat/lng/address, deactivated_by_admin_id.
+- `emergency_responses` table: composite PK (emergency_id, volunteer_id), status (accepted|declined), distanceM at time of response.
+- Volunteer matching is server-side Haversine distance vs. `volunteer_users.last_lat/last_lng`; default radius 2 km (`NEARBY_RADIUS_M` in `routes/emergencies.ts`). Volunteers always see emergencies they've already responded to, regardless of distance.
+- Role gating in `artifacts/api-server/src/lib/middleware.ts`: `requireAuth`, `requireAdmin`, `requireReviewerOrHigher`, `requireVolunteerOrHigher`. Per-endpoint type checks live in the route handlers (e.g. only `vulnerable` may create `type=minor`; only `reviewer`/`admin` may create `type=major`).
 
 ## User preferences
 

@@ -12,6 +12,12 @@ tags:
     description: Health operations
   - name: auth
     description: Authentication and registration
+  - name: emergencies
+    description: Emergency lifecycle (create, list, respond, deactivate)
+  - name: reviewer
+    description: Reviewer-only operations (verifying vulnerable accounts)
+  - name: volunteer
+    description: Volunteer-only operations (location share)
 paths:
   /healthz:
     get:
@@ -188,6 +194,191 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /emergencies:
+    get:
+      operationId: listEmergencies
+      tags: [emergencies]
+      summary: List emergencies — scope depends on caller's role
+      responses:
+        "200":
+          description: Emergencies
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmergencyList"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createEmergency
+      tags: [emergencies]
+      summary: Create an emergency. Vulnerable creates Minor; Reviewer/Admin creates Major.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEmergencyRequest"
+      responses:
+        "200":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Emergency"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Role not permitted to create this emergency type
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /emergencies/{id}/deactivate:
+    post:
+      operationId: deactivateEmergency
+      tags: [emergencies]
+      summary: Admin only — deactivate an emergency
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deactivated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Emergency"
+        "403":
+          description: Admin role required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /emergencies/{id}/respond:
+    post:
+      operationId: respondEmergency
+      tags: [emergencies]
+      summary: Volunteer (or Admin/Reviewer for testing) accepts or declines an emergency
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RespondEmergencyRequest"
+      responses:
+        "200":
+          description: Recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Volunteer role required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /reviewer/pending-vulnerable:
+    get:
+      operationId: listPendingVulnerable
+      tags: [reviewer]
+      summary: Reviewer/Admin — list vulnerable accounts awaiting verification
+      responses:
+        "200":
+          description: List
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PendingVulnerableList"
+        "403":
+          description: Reviewer role required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /reviewer/vulnerable/{id}/verify:
+    post:
+      operationId: verifyVulnerable
+      tags: [reviewer]
+      summary: Reviewer/Admin — mark a vulnerable account as verified
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Verified
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "403":
+          description: Reviewer role required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /volunteer/location:
+    post:
+      operationId: updateVolunteerLocation
+      tags: [volunteer]
+      summary: Volunteer — share current GPS location
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateLocationRequest"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "403":
+          description: Volunteer role required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /auth/me:
     get:
       operationId: getMe
@@ -346,6 +537,145 @@ components:
         - email
         - name
         - role
+    EmergencyType:
+      type: string
+      enum: [minor, major]
+    EmergencyStatus:
+      type: string
+      enum: [active, deactivated, resolved]
+    Emergency:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          $ref: "#/components/schemas/EmergencyType"
+        status:
+          $ref: "#/components/schemas/EmergencyStatus"
+        creatorRole:
+          $ref: "#/components/schemas/Role"
+        creatorUserId:
+          type: integer
+        creatorName:
+          type: string
+        description:
+          type: string
+          nullable: true
+        lat:
+          type: number
+          nullable: true
+        lng:
+          type: number
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        deactivatedAt:
+          type: string
+          format: date-time
+          nullable: true
+        distanceM:
+          type: integer
+          nullable: true
+          description: Volunteer-relative distance in metres, only present in volunteer scope.
+        myResponse:
+          type: string
+          nullable: true
+          enum: [accepted, declined]
+      required:
+        - id
+        - type
+        - status
+        - creatorRole
+        - creatorUserId
+        - creatorName
+        - createdAt
+    EmergencyList:
+      type: object
+      properties:
+        emergencies:
+          type: array
+          items:
+            $ref: "#/components/schemas/Emergency"
+      required:
+        - emergencies
+    CreateEmergencyRequest:
+      type: object
+      properties:
+        type:
+          $ref: "#/components/schemas/EmergencyType"
+        description:
+          type: string
+        lat:
+          type: number
+        lng:
+          type: number
+        address:
+          type: string
+      required:
+        - type
+    RespondEmergencyRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [accepted, declined]
+      required:
+        - status
+    PendingVulnerable:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        name:
+          type: string
+        address:
+          type: string
+        nokName:
+          type: string
+        nokRelation:
+          type: string
+        nokContact:
+          type: string
+        emailVerified:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - email
+        - name
+        - address
+        - nokName
+        - nokRelation
+        - nokContact
+        - emailVerified
+        - createdAt
+    PendingVulnerableList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/PendingVulnerable"
+      required:
+        - items
+    UpdateLocationRequest:
+      type: object
+      properties:
+        lat:
+          type: number
+        lng:
+          type: number
+      required:
+        - lat
+        - lng
     SessionUser:
       type: object
       properties:

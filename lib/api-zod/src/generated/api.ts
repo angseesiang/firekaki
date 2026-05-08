@@ -116,6 +116,154 @@ export const AdminCreateUserResponse = zod.object({
 });
 
 /**
+ * @summary List emergencies — scope depends on caller's role
+ */
+export const ListEmergenciesResponse = zod.object({
+  emergencies: zod.array(
+    zod.object({
+      id: zod.number(),
+      type: zod.enum(["minor", "major"]),
+      status: zod.enum(["active", "deactivated", "resolved"]),
+      creatorRole: zod.enum(["admin", "reviewer", "volunteer", "vulnerable"]),
+      creatorUserId: zod.number(),
+      creatorName: zod.string(),
+      description: zod.string().nullish(),
+      lat: zod.number().nullish(),
+      lng: zod.number().nullish(),
+      address: zod.string().nullish(),
+      createdAt: zod.coerce.date(),
+      deactivatedAt: zod.coerce.date().nullish(),
+      distanceM: zod
+        .number()
+        .nullish()
+        .describe(
+          "Volunteer-relative distance in metres, only present in volunteer scope.",
+        ),
+      myResponse: zod.enum(["accepted", "declined"]).nullish(),
+    }),
+  ),
+});
+
+/**
+ * @summary Create an emergency. Vulnerable creates Minor; Reviewer/Admin creates Major.
+ */
+export const CreateEmergencyBody = zod.object({
+  type: zod.enum(["minor", "major"]),
+  description: zod.string().optional(),
+  lat: zod.number().optional(),
+  lng: zod.number().optional(),
+  address: zod.string().optional(),
+});
+
+export const CreateEmergencyResponse = zod.object({
+  id: zod.number(),
+  type: zod.enum(["minor", "major"]),
+  status: zod.enum(["active", "deactivated", "resolved"]),
+  creatorRole: zod.enum(["admin", "reviewer", "volunteer", "vulnerable"]),
+  creatorUserId: zod.number(),
+  creatorName: zod.string(),
+  description: zod.string().nullish(),
+  lat: zod.number().nullish(),
+  lng: zod.number().nullish(),
+  address: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  deactivatedAt: zod.coerce.date().nullish(),
+  distanceM: zod
+    .number()
+    .nullish()
+    .describe(
+      "Volunteer-relative distance in metres, only present in volunteer scope.",
+    ),
+  myResponse: zod.enum(["accepted", "declined"]).nullish(),
+});
+
+/**
+ * @summary Admin only — deactivate an emergency
+ */
+export const DeactivateEmergencyParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const DeactivateEmergencyResponse = zod.object({
+  id: zod.number(),
+  type: zod.enum(["minor", "major"]),
+  status: zod.enum(["active", "deactivated", "resolved"]),
+  creatorRole: zod.enum(["admin", "reviewer", "volunteer", "vulnerable"]),
+  creatorUserId: zod.number(),
+  creatorName: zod.string(),
+  description: zod.string().nullish(),
+  lat: zod.number().nullish(),
+  lng: zod.number().nullish(),
+  address: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  deactivatedAt: zod.coerce.date().nullish(),
+  distanceM: zod
+    .number()
+    .nullish()
+    .describe(
+      "Volunteer-relative distance in metres, only present in volunteer scope.",
+    ),
+  myResponse: zod.enum(["accepted", "declined"]).nullish(),
+});
+
+/**
+ * @summary Volunteer (or Admin/Reviewer for testing) accepts or declines an emergency
+ */
+export const RespondEmergencyParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const RespondEmergencyBody = zod.object({
+  status: zod.enum(["accepted", "declined"]),
+});
+
+export const RespondEmergencyResponse = zod.object({
+  ok: zod.boolean(),
+});
+
+/**
+ * @summary Reviewer/Admin — list vulnerable accounts awaiting verification
+ */
+export const ListPendingVulnerableResponse = zod.object({
+  items: zod.array(
+    zod.object({
+      id: zod.number(),
+      email: zod.string(),
+      name: zod.string(),
+      address: zod.string(),
+      nokName: zod.string(),
+      nokRelation: zod.string(),
+      nokContact: zod.string(),
+      emailVerified: zod.boolean(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+});
+
+/**
+ * @summary Reviewer/Admin — mark a vulnerable account as verified
+ */
+export const VerifyVulnerableParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const VerifyVulnerableResponse = zod.object({
+  ok: zod.boolean(),
+});
+
+/**
+ * @summary Volunteer — share current GPS location
+ */
+export const UpdateVolunteerLocationBody = zod.object({
+  lat: zod.number(),
+  lng: zod.number(),
+});
+
+export const UpdateVolunteerLocationResponse = zod.object({
+  ok: zod.boolean(),
+});
+
+/**
  * @summary Get the current session user
  */
 export const GetMeResponse = zod.object({
