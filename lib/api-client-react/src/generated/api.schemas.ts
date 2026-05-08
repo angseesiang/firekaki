@@ -288,6 +288,18 @@ export interface PendingVulnerableList {
   items: PendingVulnerable[];
 }
 
+export interface VulnerableMe {
+  id: number;
+  name: string;
+  email: string;
+  address: string;
+  nokName: string;
+  nokRelation: string;
+  nokContact: string;
+  verified: boolean;
+  emailVerified: boolean;
+}
+
 export interface UpdateLocationRequest {
   lat: number;
   lng: number;

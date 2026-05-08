@@ -11,6 +11,8 @@ import {
   UserCheck,
   PowerOff,
   Loader2,
+  Bell,
+  Phone,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -22,6 +24,8 @@ import {
   listPendingVulnerable,
   verifyVulnerable,
   updateVolunteerLocation,
+  getVulnerableMe,
+  updateVulnerableLocation,
   type Emergency,
   type PendingVulnerable,
 } from "@workspace/api-client-react";
@@ -78,6 +82,14 @@ export default function DashboardPage() {
                 Manage users
               </Link>
             ) : null}
+            {isVulnerable && (
+              <Link
+                href="/my-requests"
+                className="text-sm font-medium text-stone-600 hover:text-[hsl(var(--primary))]"
+              >
+                Past requests
+              </Link>
+            )}
             <button
               onClick={() => logout.mutate(undefined, { onSuccess: () => navigate("/") })}
               className="text-sm text-stone-600 hover:text-stone-900"
@@ -89,27 +101,31 @@ export default function DashboardPage() {
       </header>
 
       <main className="max-w-5xl mx-auto px-6 py-10 space-y-8">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-[hsl(var(--primary))] mb-2">
-            Signed in · {u.role}
-          </p>
-          <h1 className="font-serif text-4xl font-bold text-stone-900">
-            Welcome, {u.name}.
-          </h1>
-        </div>
+        {!isVulnerable && (
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-[hsl(var(--primary))] mb-2">
+              Signed in · {u.role}
+            </p>
+            <h1 className="font-serif text-4xl font-bold text-stone-900">
+              Welcome, {u.name}.
+            </h1>
+          </div>
+        )}
 
         <EmailVerificationBanner />
 
         {isReviewerOrHigher && <EmergencyNotifier userId={u.id} />}
 
-        {isVulnerable && <VulnerablePanel verified={u.verified ?? false} />}
+        {isVulnerable && <VulnerablePanel name={u.name} verified={u.verified ?? false} />}
         {isVolunteer && <VolunteerPanel />}
         {isReviewerOrHigher && <ReviewerPanel canDeactivate={isAdmin} canCreateMajor />}
 
-        <p className="text-xs text-stone-500">
-          Logged in to the <span className="font-mono">{u.role}_users</span> vault ·{" "}
-          <span className="font-mono">{u.email}</span>
-        </p>
+        {!isVulnerable && (
+          <p className="text-xs text-stone-500">
+            Logged in to the <span className="font-mono">{u.role}_users</span> vault ·{" "}
+            <span className="font-mono">{u.email}</span>
+          </p>
+        )}
       </main>
     </div>
   );
@@ -172,132 +188,133 @@ function EmailVerificationBanner() {
 
 /* ─────────── VULNERABLE: request help + own history ─────────── */
 
-function VulnerablePanel({ verified }: { verified: boolean }) {
+function VulnerablePanel({ name, verified }: { name: string; verified: boolean }) {
   const qc = useQueryClient();
-  const list = useQuery({
-    queryKey: EMERGENCIES_KEY,
-    queryFn: () => listEmergencies({ credentials: "include" }),
-    refetchInterval: 10_000,
+  const profile = useQuery({
+    queryKey: ["/api/vulnerable/me"] as const,
+    queryFn: () => getVulnerableMe({ credentials: "include" }),
   });
-  const [description, setDescription] = useState("");
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [geoErr, setGeoErr] = useState<string | null>(null);
   const [submitErr, setSubmitErr] = useState<string | null>(null);
+  const [submitOk, setSubmitOk] = useState(false);
+
+  const saveLoc = useMutation({
+    mutationFn: (body: { lat: number; lng: number }) =>
+      updateVulnerableLocation(body, { credentials: "include" }),
+  });
+
+  // auto-track location: watchPosition keeps coords fresh and pushes to server
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        const c = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setCoords(c);
+        saveLoc.mutate(c);
+      },
+      () => {
+        // silently ignore — SOS still works without coords
+      },
+      { enableHighAccuracy: true, maximumAge: 30_000, timeout: 30_000 },
+    );
+    return () => navigator.geolocation.clearWatch(watchId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const create = useMutation({
     mutationFn: () =>
       createEmergency(
         {
           type: "minor",
-          description: description.trim() || undefined,
           lat: coords?.lat,
           lng: coords?.lng,
         },
         { credentials: "include" },
       ),
     onSuccess: () => {
-      setDescription("");
+      setSubmitOk(true);
       qc.invalidateQueries({ queryKey: EMERGENCIES_KEY });
+      window.setTimeout(() => setSubmitOk(false), 6_000);
     },
+    onError: (err) =>
+      setSubmitErr(
+        (err as { data?: { message?: string } })?.data?.message ?? "Could not send request.",
+      ),
   });
 
-  function shareLocation() {
-    setGeoErr(null);
-    if (!navigator.geolocation) {
-      setGeoErr("Geolocation not available in this browser.");
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      (err) => setGeoErr(err.message),
-      { enableHighAccuracy: true, timeout: 10_000 },
-    );
-  }
-
-  function onRequest(e: FormEvent) {
-    e.preventDefault();
+  function onSos() {
     setSubmitErr(null);
+    setSubmitOk(false);
     if (!verified) {
       setSubmitErr("Awaiting Reviewer verification — you can't request help yet.");
       return;
     }
-    create.mutate(undefined, {
-      onError: (err) =>
-        setSubmitErr(
-          (err as { data?: { message?: string } })?.data?.message ?? "Could not send request.",
-        ),
-    });
+    create.mutate();
   }
 
-  const items = list.data?.emergencies ?? [];
+  const p = profile.data;
+  const firstName = name.split(" ")[0] ?? name;
+  const greeting = name.toLowerCase().startsWith("madam") ? name : `Madam ${firstName}`;
 
   return (
-    <section className="bg-white border border-stone-200 rounded-2xl p-8 shadow-sm">
-      <SectionHeader
-        icon={<Siren className="w-5 h-5" />}
-        title="Request help"
-        subtitle="One tap pages a Minor emergency to nearby trained volunteers."
-      />
-      {!verified && (
-        <div className="mb-5 bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-900">
-          <strong>Awaiting Reviewer verification.</strong> Once a Reviewer confirms your details,
-          you'll be able to request help.
-        </div>
-      )}
-      <form onSubmit={onRequest} className="space-y-4">
-        <div>
-          <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 mb-2">
-            What's happening? (optional)
-          </label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={2}
-            placeholder="e.g. Smoke alarm going off, can't get up from bed"
-            className="w-full rounded-lg border border-stone-200 px-3 py-2 focus:outline-none focus:border-[hsl(var(--primary))]"
-          />
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={shareLocation}
-            className="inline-flex items-center gap-2 text-sm border border-stone-300 rounded-lg px-3 py-2 hover:bg-stone-50"
-          >
-            <MapPin className="w-4 h-4" />
-            {coords ? "Update location" : "Share my location"}
-          </button>
-          {coords && (
-            <span className="text-xs text-stone-600 font-mono">
-              {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
-            </span>
-          )}
-          {geoErr && <span className="text-xs text-red-600">{geoErr}</span>}
-        </div>
-        {submitErr && (
-          <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-            {submitErr}
-          </p>
-        )}
-        <button
-          type="submit"
-          disabled={create.isPending || !verified}
-          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-[hsl(var(--primary))] text-white rounded-lg px-6 py-3 font-semibold hover:opacity-90 disabled:opacity-60 transition"
-        >
-          {create.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Siren className="w-4 h-4" />}
-          Request help now
-        </button>
-      </form>
+    <section className="max-w-md mx-auto text-center">
+      <h1 className="font-serif text-4xl font-bold text-stone-900">Hi, {greeting}</h1>
+      <p className="text-stone-600 mt-3 text-lg">
+        Press the button if you need help. Help comes to you.
+      </p>
 
-      <h3 className="font-serif text-lg font-bold text-stone-900 mt-8 mb-3">Your past requests</h3>
-      {items.length === 0 ? (
-        <p className="text-sm text-stone-500">No requests yet.</p>
-      ) : (
-        <ul className="space-y-2">
-          {items.map((e) => (
-            <EmergencyRow key={e.id} e={e} />
-          ))}
-        </ul>
+      {!verified && (
+        <div className="mt-6 bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-900 text-left">
+          <strong>Awaiting Reviewer verification.</strong> Once a Reviewer confirms your details,
+          you'll be able to press SOS.
+        </div>
       )}
+
+      <div className="my-12 flex justify-center">
+        <button
+          type="button"
+          onClick={onSos}
+          disabled={create.isPending || !verified}
+          aria-label="Send SOS"
+          className="w-56 h-56 rounded-full bg-[hsl(var(--primary))] text-white shadow-xl hover:opacity-90 active:scale-95 transition disabled:opacity-60 disabled:active:scale-100 flex flex-col items-center justify-center gap-2"
+        >
+          {create.isPending ? (
+            <Loader2 className="w-16 h-16 animate-spin" />
+          ) : (
+            <Bell className="w-20 h-20" strokeWidth={1.8} />
+          )}
+          <span className="font-serif text-3xl font-bold tracking-wide">SOS</span>
+        </button>
+      </div>
+
+      {submitOk && (
+        <p className="mb-4 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2 inline-flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4" />
+          Help is on the way.
+        </p>
+      )}
+      {submitErr && (
+        <p className="mb-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+          {submitErr}
+        </p>
+      )}
+
+      {p && (
+        <div className="mt-6 bg-white border border-stone-200 rounded-2xl p-5 text-left shadow-sm">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-stone-500">
+            <Phone className="w-4 h-4 text-stone-500" />
+            Next of kin on file
+          </div>
+          <p className="mt-2 font-serif text-xl font-bold text-stone-900">{p.nokName}</p>
+          <p className="text-sm text-stone-600">{p.nokRelation}</p>
+        </div>
+      )}
+
+      <p className="mt-6 text-[11px] text-stone-400">
+        {coords
+          ? `Location auto-shared · ${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`
+          : "Waiting for location…"}
+      </p>
     </section>
   );
 }

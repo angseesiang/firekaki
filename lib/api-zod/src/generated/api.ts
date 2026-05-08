@@ -464,6 +464,33 @@ export const UpdateVolunteerLocationResponse = zod.object({
 });
 
 /**
+ * @summary Vulnerable — fetch own profile (NOK + address)
+ */
+export const GetVulnerableMeResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  email: zod.string(),
+  address: zod.string(),
+  nokName: zod.string(),
+  nokRelation: zod.string(),
+  nokContact: zod.string(),
+  verified: zod.boolean(),
+  emailVerified: zod.boolean(),
+});
+
+/**
+ * @summary Vulnerable — share current GPS location
+ */
+export const UpdateVulnerableLocationBody = zod.object({
+  lat: zod.number(),
+  lng: zod.number(),
+});
+
+export const UpdateVulnerableLocationResponse = zod.object({
+  ok: zod.boolean(),
+});
+
+/**
  * @summary Admin — list every user across all four vaults
  */
 export const AdminListAllUsersResponse = zod.object({

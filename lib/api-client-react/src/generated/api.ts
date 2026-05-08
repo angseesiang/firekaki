@@ -37,6 +37,7 @@ import type {
   SignupRequest,
   UpdateLocationRequest,
   VerifyEmailParams,
+  VulnerableMe,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -1566,6 +1567,168 @@ export const useUpdateVolunteerLocation = <
   TContext
 > => {
   return useMutation(getUpdateVolunteerLocationMutationOptions(options));
+};
+
+/**
+ * @summary Vulnerable — fetch own profile (NOK + address)
+ */
+export const getGetVulnerableMeUrl = () => {
+  return `/api/vulnerable/me`;
+};
+
+export const getVulnerableMe = async (
+  options?: RequestInit,
+): Promise<VulnerableMe> => {
+  return customFetch<VulnerableMe>(getGetVulnerableMeUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetVulnerableMeQueryKey = () => {
+  return [`/api/vulnerable/me`] as const;
+};
+
+export const getGetVulnerableMeQueryOptions = <
+  TData = Awaited<ReturnType<typeof getVulnerableMe>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getVulnerableMe>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetVulnerableMeQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getVulnerableMe>>> = ({
+    signal,
+  }) => getVulnerableMe({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getVulnerableMe>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetVulnerableMeQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getVulnerableMe>>
+>;
+export type GetVulnerableMeQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Vulnerable — fetch own profile (NOK + address)
+ */
+
+export function useGetVulnerableMe<
+  TData = Awaited<ReturnType<typeof getVulnerableMe>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getVulnerableMe>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetVulnerableMeQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Vulnerable — share current GPS location
+ */
+export const getUpdateVulnerableLocationUrl = () => {
+  return `/api/vulnerable/location`;
+};
+
+export const updateVulnerableLocation = async (
+  updateLocationRequest: UpdateLocationRequest,
+  options?: RequestInit,
+): Promise<OkResponse> => {
+  return customFetch<OkResponse>(getUpdateVulnerableLocationUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateLocationRequest),
+  });
+};
+
+export const getUpdateVulnerableLocationMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateVulnerableLocation>>,
+    TError,
+    { data: BodyType<UpdateLocationRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateVulnerableLocation>>,
+  TError,
+  { data: BodyType<UpdateLocationRequest> },
+  TContext
+> => {
+  const mutationKey = ["updateVulnerableLocation"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateVulnerableLocation>>,
+    { data: BodyType<UpdateLocationRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return updateVulnerableLocation(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateVulnerableLocationMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateVulnerableLocation>>
+>;
+export type UpdateVulnerableLocationMutationBody =
+  BodyType<UpdateLocationRequest>;
+export type UpdateVulnerableLocationMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Vulnerable — share current GPS location
+ */
+export const useUpdateVulnerableLocation = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateVulnerableLocation>>,
+    TError,
+    { data: BodyType<UpdateLocationRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateVulnerableLocation>>,
+  TError,
+  { data: BodyType<UpdateLocationRequest> },
+  TContext
+> => {
+  return useMutation(getUpdateVulnerableLocationMutationOptions(options));
 };
 
 /**

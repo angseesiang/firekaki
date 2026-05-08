@@ -5,6 +5,7 @@ import adminRouter from "./admin";
 import emergenciesRouter from "./emergencies";
 import reviewerRouter from "./reviewer";
 import volunteerRouter from "./volunteer";
+import vulnerableRouter from "./vulnerable";
 
 const router: IRouter = Router();
 
@@ -14,5 +15,6 @@ router.use(adminRouter);
 router.use(emergenciesRouter);
 router.use(reviewerRouter);
 router.use(volunteerRouter);
+router.use(vulnerableRouter);
 
 export default router;

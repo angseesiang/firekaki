@@ -9,6 +9,7 @@ import SignupPage from "@/pages/signup";
 import DashboardPage from "@/pages/dashboard";
 import AdminPage from "@/pages/admin";
 import ReviewerUsersPage from "@/pages/reviewer-users";
+import MyRequestsPage from "@/pages/my-requests";
 import VerifyPage from "@/pages/verify";
 
 const queryClient = new QueryClient();
@@ -22,6 +23,7 @@ function Router() {
       <Route path="/dashboard" component={DashboardPage} />
       <Route path="/admin" component={AdminPage} />
       <Route path="/reviewer/users" component={ReviewerUsersPage} />
+      <Route path="/my-requests" component={MyRequestsPage} />
       <Route path="/verify" component={VerifyPage} />
       <Route component={NotFound} />
     </Switch>

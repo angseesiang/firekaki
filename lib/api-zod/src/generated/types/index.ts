@@ -43,4 +43,5 @@ export * from "./updateLocationRequest";
 export * from "./verifyEmailParams";
 export * from "./verifyEmailRole";
 export * from "./volunteerProfileInput";
+export * from "./vulnerableMe";
 export * from "./vulnerableProfileInput";

@@ -18,6 +18,8 @@ tags:
     description: Reviewer-only operations (verifying vulnerable accounts)
   - name: volunteer
     description: Volunteer-only operations (location share)
+  - name: vulnerable
+    description: Vulnerable-only operations (profile + location)
 paths:
   /healthz:
     get:
@@ -507,6 +509,48 @@ paths:
                 $ref: "#/components/schemas/OkResponse"
         "403":
           description: Volunteer role required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /vulnerable/me:
+    get:
+      operationId: getVulnerableMe
+      tags: [vulnerable]
+      summary: Vulnerable — fetch own profile (NOK + address)
+      responses:
+        "200":
+          description: Profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VulnerableMe"
+        "403":
+          description: Vulnerable role required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /vulnerable/location:
+    post:
+      operationId: updateVulnerableLocation
+      tags: [vulnerable]
+      summary: Vulnerable — share current GPS location
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateLocationRequest"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "403":
+          description: Vulnerable role required
           content:
             application/json:
               schema:
@@ -1192,6 +1236,20 @@ components:
             $ref: "#/components/schemas/PendingVulnerable"
       required:
         - items
+    VulnerableMe:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        email: { type: string }
+        address: { type: string }
+        nokName: { type: string }
+        nokRelation: { type: string }
+        nokContact: { type: string }
+        verified: { type: boolean }
+        emailVerified: { type: boolean }
+      required:
+        [id, name, email, address, nokName, nokRelation, nokContact, verified, emailVerified]
     UpdateLocationRequest:
       type: object
       properties:
