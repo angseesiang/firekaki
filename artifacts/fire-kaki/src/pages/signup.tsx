@@ -77,14 +77,9 @@ export default function SignupPage() {
         </div>
 
         <div className="bg-white border border-stone-200 rounded-2xl p-8 shadow-sm">
-          <h1 className="font-serif text-3xl font-bold text-stone-900 mb-2">
+          <h1 className="font-serif text-3xl font-bold text-stone-900 mb-8">
             Join the network
           </h1>
-          <p className="text-stone-600 mb-8 text-sm">
-            Sign up as a Volunteer or as a Vulnerable resident. If you'd like to
-            do both, sign up once for each — you can use the same email address.
-            Reviewer and Admin accounts are created by an Admin.
-          </p>
 
           <form onSubmit={onSubmit} className="space-y-6">
             <div className="grid sm:grid-cols-2 gap-4">
