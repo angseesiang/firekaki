@@ -13,4 +13,5 @@ export const Role = {
   reviewer: "reviewer",
   volunteer: "volunteer",
   vulnerable: "vulnerable",
+  nok: "nok",
 } as const;

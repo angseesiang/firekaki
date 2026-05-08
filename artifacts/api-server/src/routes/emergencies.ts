@@ -6,6 +6,7 @@ import {
   emergencyResponses,
   volunteerUsers,
   vulnerableUsers,
+  nokUsers,
 } from "@workspace/db";
 import {
   CreateEmergencyBody,
@@ -170,6 +171,16 @@ router.get("/emergencies", requireAuth, async (req, res) => {
     if (u.role === "vulnerable") {
       scoped = rows.filter(
         (e) => e.creatorRole === "vulnerable" && e.creatorUserId === u.id,
+      );
+    } else if (u.role === "nok") {
+      const link = await db
+        .select({ vid: nokUsers.linkedVulnerableId })
+        .from(nokUsers)
+        .where(eq(nokUsers.id, u.id))
+        .limit(1);
+      const vid = link[0]?.vid ?? -1;
+      scoped = rows.filter(
+        (e) => e.creatorRole === "vulnerable" && e.creatorUserId === vid,
       );
     } else if (u.role === "volunteer") {
       // computed below

@@ -20,6 +20,8 @@ tags:
     description: Volunteer-only operations (location share)
   - name: vulnerable
     description: Vulnerable-only operations (profile + location)
+  - name: nok
+    description: Next-of-kin operations (linked vulnerable's profile + SOS feed)
 paths:
   /healthz:
     get:
@@ -513,6 +515,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /nok/me:
+    get:
+      operationId: getNokMe
+      tags: [nok]
+      summary: NOK — fetch own profile + linked vulnerable details
+      responses:
+        "200":
+          description: NOK profile with linked vulnerable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NokMe"
+        "403":
+          description: NOK role required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /vulnerable/me:
     get:
       operationId: getVulnerableMe
@@ -583,7 +603,7 @@ paths:
           name: role
           required: true
           schema:
-            $ref: "#/components/schemas/Role"
+            $ref: "#/components/schemas/ManagedUserRole"
         - in: path
           name: id
           required: true
@@ -624,7 +644,7 @@ paths:
           name: role
           required: true
           schema:
-            $ref: "#/components/schemas/Role"
+            $ref: "#/components/schemas/ManagedUserRole"
         - in: path
           name: id
           required: true
@@ -659,7 +679,7 @@ paths:
           name: role
           required: true
           schema:
-            $ref: "#/components/schemas/Role"
+            $ref: "#/components/schemas/ManagedUserRole"
         - in: path
           name: id
           required: true
@@ -711,7 +731,7 @@ paths:
           name: role
           required: true
           schema:
-            $ref: "#/components/schemas/Role"
+            $ref: "#/components/schemas/ManagedUserRole"
         - in: path
           name: id
           required: true
@@ -785,6 +805,10 @@ components:
         - message
     Role:
       type: string
+      enum: [admin, reviewer, volunteer, vulnerable, nok]
+    ManagedUserRole:
+      type: string
+      description: Roles that can be administered via /admin/users (NOK is auto-managed via its linked Vulnerable, hence excluded).
       enum: [admin, reviewer, volunteer, vulnerable]
     SignupRole:
       type: string
@@ -814,6 +838,18 @@ components:
         - nokName
         - nokRelation
         - nokContact
+    NokAccountInput:
+      type: object
+      description: Optional NOK login credentials when registering a Vulnerable. When supplied, a linked nok_users row is created so the next-of-kin can log in and receive SOS notifications.
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+          minLength: 8
+      required:
+        - email
+        - password
     SignupRequest:
       type: object
       properties:
@@ -833,6 +869,8 @@ components:
           $ref: "#/components/schemas/VolunteerProfileInput"
         vulnerable:
           $ref: "#/components/schemas/VulnerableProfileInput"
+        nokAccount:
+          $ref: "#/components/schemas/NokAccountInput"
       required:
         - email
         - password
@@ -1236,6 +1274,25 @@ components:
             $ref: "#/components/schemas/PendingVulnerable"
       required:
         - items
+    NokMe:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        email: { type: string }
+        contact: { type: string }
+        linkedVulnerable:
+          type: object
+          properties:
+            id: { type: integer }
+            name: { type: string }
+            address: { type: string }
+            verified: { type: boolean }
+            lastLat: { type: number, nullable: true }
+            lastLng: { type: number, nullable: true }
+            lastSeenAt: { type: string, nullable: true, format: date-time }
+          required: [id, name, address, verified, lastLat, lastLng, lastSeenAt]
+      required: [id, name, email, contact, linkedVulnerable]
     VulnerableMe:
       type: object
       properties:

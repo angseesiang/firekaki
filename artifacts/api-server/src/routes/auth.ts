@@ -8,6 +8,7 @@ import {
   reviewerUsers,
   volunteerUsers,
   vulnerableUsers,
+  nokUsers,
 } from "@workspace/db";
 import {
   SignupBody,
@@ -44,6 +45,8 @@ function tableForRole(role: Role) {
       return volunteerUsers;
     case "vulnerable":
       return vulnerableUsers;
+    case "nok":
+      return nokUsers;
   }
 }
 
@@ -82,7 +85,8 @@ router.post("/auth/signup", async (req, res) => {
   if (!parsed.success) {
     return sendError(res, 400, parsed.error.issues[0]?.message ?? "Invalid input");
   }
-  const { email, password, name, roles, volunteer, vulnerable } = parsed.data;
+  const { email, password, name, roles, volunteer, vulnerable, nokAccount } =
+    parsed.data;
   const emailNorm = email.trim().toLowerCase();
   const nameNorm = name.trim();
 
@@ -192,6 +196,59 @@ router.post("/auth/signup", async (req, res) => {
         const row = inserted[0];
         if (row)
           last = { id: row.id, role: "vulnerable", verified: row.verified };
+
+        // Optionally create a linked NOK login account
+        if (nokAccount && row) {
+          const nokEmailNorm = nokAccount.email.trim().toLowerCase();
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nokEmailNorm)) {
+            throw new HttpError(400, "Please enter a valid NOK email address");
+          }
+          if (nokEmailNorm === emailNorm) {
+            throw new HttpError(
+              400,
+              "NOK login email must differ from the Vulnerable's own email",
+            );
+          }
+          const nokExisting = await tx
+            .select({ id: nokUsers.id })
+            .from(nokUsers)
+            .where(eq(nokUsers.email, nokEmailNorm))
+            .limit(1);
+          if (nokExisting.length > 0) {
+            throw new HttpError(
+              409,
+              "This NOK email is already registered. Please use a different one.",
+            );
+          }
+          // Higher-priority vaults shadow NOK in the login sweep; reject early to
+          // keep the NOK login reachable.
+          for (const [tbl, label] of [
+            [adminUsers, "Admin"],
+            [reviewerUsers, "Reviewer"],
+            [volunteerUsers, "Volunteer"],
+            [vulnerableUsers, "Vulnerable"],
+          ] as const) {
+            const clash = await tx
+              .select({ id: tbl.id })
+              .from(tbl)
+              .where(eq(tbl.email, nokEmailNorm))
+              .limit(1);
+            if (clash.length > 0) {
+              throw new HttpError(
+                409,
+                `This NOK email is already in use as a ${label} account. Please use a different email.`,
+              );
+            }
+          }
+          const nokHash = await bcrypt.hash(nokAccount.password, 10);
+          await tx.insert(nokUsers).values({
+            email: nokEmailNorm,
+            passwordHash: nokHash,
+            name: vulnerable!.nokName.trim(),
+            contact: vulnerable!.nokContact.trim(),
+            linkedVulnerableId: row.id,
+          });
+        }
       }
 
       if (!last) throw new HttpError(400, "No role selected");
@@ -349,7 +406,7 @@ router.post("/auth/login", async (req, res) => {
   const emailNorm = email.trim().toLowerCase();
 
   // Search vaults in priority order; first matching email+password wins.
-  const order: Role[] = ["admin", "reviewer", "volunteer", "vulnerable"];
+  const order: Role[] = ["admin", "reviewer", "volunteer", "vulnerable", "nok"];
   let matched: { user: { id: number; email: string; name: string; passwordHash: string }; role: Role } | null = null;
   for (const r of order) {
     const t = tableForRole(r);
@@ -381,7 +438,7 @@ router.post("/auth/login", async (req, res) => {
   const emailVerified =
     role === "volunteer" || role === "vulnerable"
       ? Boolean((user as unknown as { emailVerifiedAt: Date | null }).emailVerifiedAt)
-      : true;
+      : true; // admin / reviewer / nok are not email-verified-gated
 
   const sessionUser: SessionUser = {
     id: user.id,

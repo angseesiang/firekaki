@@ -20,6 +20,8 @@ export const HealthCheckResponse = zod.object({
  */
 export const signupBodyPasswordMin = 8;
 
+export const signupBodyNokAccountPasswordMin = 8;
+
 export const SignupBody = zod.object({
   email: zod.string(),
   password: zod.string().min(signupBodyPasswordMin),
@@ -39,13 +41,22 @@ export const SignupBody = zod.object({
       nokContact: zod.string(),
     })
     .optional(),
+  nokAccount: zod
+    .object({
+      email: zod.string(),
+      password: zod.string().min(signupBodyNokAccountPasswordMin),
+    })
+    .optional()
+    .describe(
+      "Optional NOK login credentials when registering a Vulnerable. When supplied, a linked nok_users row is created so the next-of-kin can log in and receive SOS notifications.",
+    ),
 });
 
 export const SignupResponse = zod.object({
   id: zod.number(),
   email: zod.string(),
   name: zod.string(),
-  role: zod.enum(["admin", "reviewer", "volunteer", "vulnerable"]),
+  role: zod.enum(["admin", "reviewer", "volunteer", "vulnerable", "nok"]),
   verified: zod.boolean().optional(),
   emailVerified: zod.boolean(),
 });
@@ -56,14 +67,16 @@ export const SignupResponse = zod.object({
 export const LoginBody = zod.object({
   email: zod.string(),
   password: zod.string(),
-  role: zod.enum(["admin", "reviewer", "volunteer", "vulnerable"]).optional(),
+  role: zod
+    .enum(["admin", "reviewer", "volunteer", "vulnerable", "nok"])
+    .optional(),
 });
 
 export const LoginResponse = zod.object({
   id: zod.number(),
   email: zod.string(),
   name: zod.string(),
-  role: zod.enum(["admin", "reviewer", "volunteer", "vulnerable"]),
+  role: zod.enum(["admin", "reviewer", "volunteer", "vulnerable", "nok"]),
   verified: zod.boolean().optional(),
   emailVerified: zod.boolean(),
 });
@@ -124,7 +137,13 @@ export const ListEmergenciesResponse = zod.object({
       id: zod.number(),
       type: zod.enum(["minor", "major"]),
       status: zod.enum(["active", "deactivated", "resolved"]),
-      creatorRole: zod.enum(["admin", "reviewer", "volunteer", "vulnerable"]),
+      creatorRole: zod.enum([
+        "admin",
+        "reviewer",
+        "volunteer",
+        "vulnerable",
+        "nok",
+      ]),
       creatorUserId: zod.number(),
       creatorName: zod.string(),
       description: zod.string().nullish(),
@@ -197,7 +216,13 @@ export const CreateEmergencyResponse = zod.object({
   id: zod.number(),
   type: zod.enum(["minor", "major"]),
   status: zod.enum(["active", "deactivated", "resolved"]),
-  creatorRole: zod.enum(["admin", "reviewer", "volunteer", "vulnerable"]),
+  creatorRole: zod.enum([
+    "admin",
+    "reviewer",
+    "volunteer",
+    "vulnerable",
+    "nok",
+  ]),
   creatorUserId: zod.number(),
   creatorName: zod.string(),
   description: zod.string().nullish(),
@@ -264,7 +289,13 @@ export const DeactivateEmergencyResponse = zod.object({
   id: zod.number(),
   type: zod.enum(["minor", "major"]),
   status: zod.enum(["active", "deactivated", "resolved"]),
-  creatorRole: zod.enum(["admin", "reviewer", "volunteer", "vulnerable"]),
+  creatorRole: zod.enum([
+    "admin",
+    "reviewer",
+    "volunteer",
+    "vulnerable",
+    "nok",
+  ]),
   creatorUserId: zod.number(),
   creatorName: zod.string(),
   description: zod.string().nullish(),
@@ -464,6 +495,25 @@ export const UpdateVolunteerLocationResponse = zod.object({
 });
 
 /**
+ * @summary NOK — fetch own profile + linked vulnerable details
+ */
+export const GetNokMeResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  email: zod.string(),
+  contact: zod.string(),
+  linkedVulnerable: zod.object({
+    id: zod.number(),
+    name: zod.string(),
+    address: zod.string(),
+    verified: zod.boolean(),
+    lastLat: zod.number().nullable(),
+    lastLng: zod.number().nullable(),
+    lastSeenAt: zod.coerce.date().nullable(),
+  }),
+});
+
+/**
  * @summary Vulnerable — fetch own profile (NOK + address)
  */
 export const GetVulnerableMeResponse = zod.object({
@@ -615,7 +665,7 @@ export const GetMeResponse = zod.object({
   id: zod.number(),
   email: zod.string(),
   name: zod.string(),
-  role: zod.enum(["admin", "reviewer", "volunteer", "vulnerable"]),
+  role: zod.enum(["admin", "reviewer", "volunteer", "vulnerable", "nok"]),
   verified: zod.boolean().optional(),
   emailVerified: zod.boolean(),
 });

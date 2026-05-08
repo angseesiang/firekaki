@@ -21,7 +21,7 @@ import {
   type AdminCreateUserRequest,
   type AdminUpdateUserRequest,
   type AdminCreatedUser,
-  type Role,
+  type ManagedUserRole,
 } from "@workspace/api-client-react";
 import { useMe, useLogout } from "@/lib/auth";
 
@@ -226,7 +226,8 @@ function CreateUserForm() {
 
 /* ─────────── 4-vault user tables ─────────── */
 
-const TABS: { role: Role; label: string }[] = [
+type ManagedRole = "admin" | "reviewer" | "volunteer" | "vulnerable";
+const TABS: { role: ManagedRole; label: string }[] = [
   { role: "admin", label: "Admins" },
   { role: "reviewer", label: "Reviewers" },
   { role: "volunteer", label: "Volunteers" },
@@ -241,8 +242,8 @@ type EditTarget =
 
 function UserVaults({ currentAdminId }: { currentAdminId: number }) {
   const qc = useQueryClient();
-  const [active, setActive] = useState<Role>("admin");
-  const [confirmDelete, setConfirmDelete] = useState<{ role: Role; id: number; email: string } | null>(null);
+  const [active, setActive] = useState<ManagedUserRole>("admin");
+  const [confirmDelete, setConfirmDelete] = useState<{ role: ManagedUserRole; id: number; email: string } | null>(null);
   const [editing, setEditing] = useState<EditTarget | null>(null);
   const [actionMsg, setActionMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
 
@@ -256,7 +257,7 @@ function UserVaults({ currentAdminId }: { currentAdminId: number }) {
   }
 
   const disable = useMutation({
-    mutationFn: ({ role, id }: { role: Role; id: number }) =>
+    mutationFn: ({ role, id }: { role: ManagedUserRole; id: number }) =>
       adminDisableUser(role, id, { credentials: "include" }),
     onSuccess: () => {
       setActionMsg({ kind: "ok", text: "Account disabled." });
@@ -271,7 +272,7 @@ function UserVaults({ currentAdminId }: { currentAdminId: number }) {
       }),
   });
   const enableM = useMutation({
-    mutationFn: ({ role, id }: { role: Role; id: number }) =>
+    mutationFn: ({ role, id }: { role: ManagedUserRole; id: number }) =>
       adminEnableUser(role, id, { credentials: "include" }),
     onSuccess: () => {
       setActionMsg({ kind: "ok", text: "Account re-enabled." });
@@ -279,7 +280,7 @@ function UserVaults({ currentAdminId }: { currentAdminId: number }) {
     },
   });
   const del = useMutation({
-    mutationFn: ({ role, id }: { role: Role; id: number }) =>
+    mutationFn: ({ role, id }: { role: ManagedUserRole; id: number }) =>
       adminDeleteUser(role, id, { credentials: "include" }),
     onSuccess: () => {
       setActionMsg({ kind: "ok", text: "Account removed." });
@@ -423,7 +424,7 @@ function UserTable({
   onEdit,
   busy,
 }: {
-  role: Role;
+  role: ManagedUserRole;
   data: Overview;
   currentAdminId: number;
   onDisable: (id: number) => void;

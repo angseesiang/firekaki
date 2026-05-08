@@ -21,6 +21,9 @@ export default function SignupPage() {
   const [nokName, setNokName] = useState("");
   const [nokRelation, setNokRelation] = useState("");
   const [nokContact, setNokContact] = useState("");
+  const [createNokLogin, setCreateNokLogin] = useState(true);
+  const [nokEmail, setNokEmail] = useState("");
+  const [nokPassword, setNokPassword] = useState("");
 
   const [error, setError] = useState<string | null>(null);
 
@@ -30,6 +33,16 @@ export default function SignupPage() {
     if (password.length < 8) {
       setError("Password must be at least 8 characters.");
       return;
+    }
+    if (role === "vulnerable" && createNokLogin) {
+      if (!nokEmail.trim()) {
+        setError("NOK login email is required.");
+        return;
+      }
+      if (nokPassword.length < 8) {
+        setError("NOK password must be at least 8 characters.");
+        return;
+      }
     }
 
     const body: SignupRequest = {
@@ -42,6 +55,9 @@ export default function SignupPage() {
       }),
       ...(role === "vulnerable" && {
         vulnerable: { address, nokName, nokRelation, nokContact },
+        ...(createNokLogin && {
+          nokAccount: { email: nokEmail.trim(), password: nokPassword },
+        }),
       }),
     };
 
@@ -259,6 +275,53 @@ export default function SignupPage() {
                       className="w-full rounded-lg border border-stone-200 px-3 py-2 focus:outline-none focus:border-[hsl(var(--primary))]"
                     />
                   </div>
+                </div>
+
+                <div className="rounded-lg bg-stone-50 border border-stone-200 p-4 space-y-3">
+                  <label className="flex items-start gap-2 text-sm text-stone-800">
+                    <input
+                      type="checkbox"
+                      checked={createNokLogin}
+                      onChange={(e) => setCreateNokLogin(e.target.checked)}
+                      className="mt-1"
+                    />
+                    <span>
+                      <strong>Create a Next-of-kin login</strong> so {nokName || "your NOK"}{" "}
+                      can sign in and get notified the moment SOS is pressed.
+                    </span>
+                  </label>
+                  {createNokLogin && (
+                    <div className="grid sm:grid-cols-2 gap-3 pl-6">
+                      <div>
+                        <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 mb-2">
+                          NOK email
+                        </label>
+                        <input
+                          type="email"
+                          required={createNokLogin}
+                          value={nokEmail}
+                          onChange={(e) => setNokEmail(e.target.value)}
+                          placeholder="susan@example.com"
+                          className="w-full rounded-lg border border-stone-200 px-3 py-2 focus:outline-none focus:border-[hsl(var(--primary))]"
+                          autoComplete="off"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 mb-2">
+                          NOK password (min 8)
+                        </label>
+                        <input
+                          type="password"
+                          required={createNokLogin}
+                          minLength={8}
+                          value={nokPassword}
+                          onChange={(e) => setNokPassword(e.target.value)}
+                          className="w-full rounded-lg border border-stone-200 px-3 py-2 focus:outline-none focus:border-[hsl(var(--primary))]"
+                          autoComplete="new-password"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

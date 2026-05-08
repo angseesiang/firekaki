@@ -24,6 +24,20 @@ export const Role = {
   reviewer: "reviewer",
   volunteer: "volunteer",
   vulnerable: "vulnerable",
+  nok: "nok",
+} as const;
+
+/**
+ * Roles that can be administered via /admin/users (NOK is auto-managed via its linked Vulnerable, hence excluded).
+ */
+export type ManagedUserRole =
+  (typeof ManagedUserRole)[keyof typeof ManagedUserRole];
+
+export const ManagedUserRole = {
+  admin: "admin",
+  reviewer: "reviewer",
+  volunteer: "volunteer",
+  vulnerable: "vulnerable",
 } as const;
 
 export type SignupRole = (typeof SignupRole)[keyof typeof SignupRole];
@@ -45,6 +59,15 @@ export interface VulnerableProfileInput {
   nokContact: string;
 }
 
+/**
+ * Optional NOK login credentials when registering a Vulnerable. When supplied, a linked nok_users row is created so the next-of-kin can log in and receive SOS notifications.
+ */
+export interface NokAccountInput {
+  email: string;
+  /** @minLength 8 */
+  password: string;
+}
+
 export interface SignupRequest {
   email: string;
   /** @minLength 8 */
@@ -54,6 +77,7 @@ export interface SignupRequest {
   roles: SignupRole[];
   volunteer?: VolunteerProfileInput;
   vulnerable?: VulnerableProfileInput;
+  nokAccount?: NokAccountInput;
 }
 
 export interface LoginRequest {
@@ -286,6 +310,24 @@ export interface PendingVulnerable {
 
 export interface PendingVulnerableList {
   items: PendingVulnerable[];
+}
+
+export type NokMeLinkedVulnerable = {
+  id: number;
+  name: string;
+  address: string;
+  verified: boolean;
+  lastLat: number | null;
+  lastLng: number | null;
+  lastSeenAt: string | null;
+};
+
+export interface NokMe {
+  id: number;
+  name: string;
+  email: string;
+  contact: string;
+  linkedVulnerable: NokMeLinkedVulnerable;
 }
 
 export interface VulnerableMe {

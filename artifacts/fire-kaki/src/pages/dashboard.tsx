@@ -26,6 +26,7 @@ import {
   updateVolunteerLocation,
   getVulnerableMe,
   updateVulnerableLocation,
+  getNokMe,
   type Emergency,
   type PendingVulnerable,
 } from "@workspace/api-client-react";
@@ -57,6 +58,8 @@ export default function DashboardPage() {
   const isReviewerOrHigher = isAdmin || u.role === "reviewer";
   const isVolunteer = u.role === "volunteer";
   const isVulnerable = u.role === "vulnerable";
+  const isNok = u.role === "nok";
+  const isMinimal = isVulnerable || isNok;
 
   return (
     <div className="min-h-screen bg-[hsl(var(--background))]">
@@ -101,7 +104,7 @@ export default function DashboardPage() {
       </header>
 
       <main className="max-w-5xl mx-auto px-6 py-10 space-y-8">
-        {!isVulnerable && (
+        {!isMinimal && (
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-[hsl(var(--primary))] mb-2">
               Signed in · {u.role}
@@ -114,13 +117,14 @@ export default function DashboardPage() {
 
         <EmailVerificationBanner />
 
-        {isReviewerOrHigher && <EmergencyNotifier userId={u.id} />}
+        {(isReviewerOrHigher || isNok) && <EmergencyNotifier userId={u.id} />}
 
         {isVulnerable && <VulnerablePanel name={u.name} verified={u.verified ?? false} />}
+        {isNok && <NokPanel name={u.name} />}
         {isVolunteer && <VolunteerPanel />}
         {isReviewerOrHigher && <ReviewerPanel canDeactivate={isAdmin} canCreateMajor />}
 
-        {!isVulnerable && (
+        {!isMinimal && (
           <p className="text-xs text-stone-500">
             Logged in to the <span className="font-mono">{u.role}_users</span> vault ·{" "}
             <span className="font-mono">{u.email}</span>
@@ -183,6 +187,94 @@ function EmailVerificationBanner() {
         </button>
       </div>
     </div>
+  );
+}
+
+/* ─────────── NOK: watch over linked vulnerable ─────────── */
+
+function NokPanel({ name }: { name: string }) {
+  const profile = useQuery({
+    queryKey: ["/api/nok/me"] as const,
+    queryFn: () => getNokMe({ credentials: "include" }),
+  });
+  const list = useQuery({
+    queryKey: EMERGENCIES_KEY,
+    queryFn: () => listEmergencies({ credentials: "include" }),
+    refetchInterval: 8_000,
+  });
+
+  const items = list.data?.emergencies ?? [];
+  const active = items.find((e) => e.status === "active");
+  const p = profile.data;
+  const firstName = name.split(" ")[0] ?? name;
+
+  return (
+    <section className="max-w-md mx-auto">
+      <h1 className="font-serif text-4xl font-bold text-stone-900 text-center">
+        Hi, {firstName}
+      </h1>
+      <p className="text-stone-600 mt-3 text-center">
+        You'll be notified the moment {p?.linkedVulnerable.name ?? "your loved one"} presses
+        for help.
+      </p>
+
+      {p && (
+        <div className="mt-8 bg-white border border-stone-200 rounded-2xl p-6 shadow-sm">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-stone-500">
+            <ShieldCheck className="w-4 h-4 text-[hsl(var(--primary))]" />
+            Watching over
+          </div>
+          <p className="mt-2 font-serif text-2xl font-bold text-stone-900">
+            {p.linkedVulnerable.name}
+          </p>
+          <p className="text-sm text-stone-600 mt-1">{p.linkedVulnerable.address}</p>
+          <p className="text-xs text-stone-500 mt-3">
+            {p.linkedVulnerable.lastSeenAt
+              ? `Last GPS update: ${new Date(p.linkedVulnerable.lastSeenAt).toLocaleString()}`
+              : "No GPS update yet."}
+          </p>
+        </div>
+      )}
+
+      {active ? (
+        <div className="mt-6 bg-red-50 border-2 border-[hsl(var(--primary))] rounded-2xl p-6 shadow-sm">
+          <div className="flex items-center gap-2 text-[hsl(var(--primary))] font-bold uppercase tracking-wider text-sm">
+            <Siren className="w-5 h-5" />
+            SOS active right now
+          </div>
+          <p className="mt-2 text-stone-900">
+            {p?.linkedVulnerable.name ?? "They"} pressed SOS at{" "}
+            {new Date(active.createdAt).toLocaleTimeString()}.
+          </p>
+          {active.address && (
+            <p className="text-sm text-stone-700 mt-1">{active.address}</p>
+          )}
+          {active.responseStats && (
+            <p className="text-xs text-stone-700 mt-3">
+              <span className="font-semibold">{active.responseStats.accepted}</span> volunteer(s)
+              on the way · <span className="font-semibold">{active.responseStats.arrived}</span>{" "}
+              arrived.
+            </p>
+          )}
+        </div>
+      ) : (
+        <div className="mt-6 bg-green-50 border border-green-200 rounded-2xl p-5 text-sm text-green-800 inline-flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4" />
+          All clear — no active SOS right now.
+        </div>
+      )}
+
+      <h2 className="font-serif text-lg font-bold text-stone-900 mt-8 mb-3">Recent SOS history</h2>
+      {items.length === 0 ? (
+        <p className="text-sm text-stone-500">No requests recorded yet.</p>
+      ) : (
+        <ul className="space-y-2">
+          {items.slice(0, 10).map((e) => (
+            <EmergencyRow key={e.id} e={e} />
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 

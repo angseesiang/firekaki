@@ -28,11 +28,12 @@ import type {
   ErrorResponse,
   HealthStatus,
   LoginRequest,
+  ManagedUserRole,
+  NokMe,
   OkResponse,
   PendingVulnerableList,
   RespondEmergencyRequest,
   ReviewerUsersOverview,
-  Role,
   SessionUser,
   SignupRequest,
   UpdateLocationRequest,
@@ -1570,6 +1571,71 @@ export const useUpdateVolunteerLocation = <
 };
 
 /**
+ * @summary NOK — fetch own profile + linked vulnerable details
+ */
+export const getGetNokMeUrl = () => {
+  return `/api/nok/me`;
+};
+
+export const getNokMe = async (options?: RequestInit): Promise<NokMe> => {
+  return customFetch<NokMe>(getGetNokMeUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetNokMeQueryKey = () => {
+  return [`/api/nok/me`] as const;
+};
+
+export const getGetNokMeQueryOptions = <
+  TData = Awaited<ReturnType<typeof getNokMe>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<Awaited<ReturnType<typeof getNokMe>>, TError, TData>;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetNokMeQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getNokMe>>> = ({
+    signal,
+  }) => getNokMe({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getNokMe>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetNokMeQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getNokMe>>
+>;
+export type GetNokMeQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary NOK — fetch own profile + linked vulnerable details
+ */
+
+export function useGetNokMe<
+  TData = Awaited<ReturnType<typeof getNokMe>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<Awaited<ReturnType<typeof getNokMe>>, TError, TData>;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetNokMeQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
  * @summary Vulnerable — fetch own profile (NOK + address)
  */
 export const getGetVulnerableMeUrl = () => {
@@ -1809,12 +1875,12 @@ export function useAdminListAllUsers<
 /**
  * @summary Admin — disable a user (cannot sign in until enabled)
  */
-export const getAdminDisableUserUrl = (role: Role, id: number) => {
+export const getAdminDisableUserUrl = (role: ManagedUserRole, id: number) => {
   return `/api/admin/users/${role}/${id}/disable`;
 };
 
 export const adminDisableUser = async (
-  role: Role,
+  role: ManagedUserRole,
   id: number,
   options?: RequestInit,
 ): Promise<OkResponse> => {
@@ -1831,14 +1897,14 @@ export const getAdminDisableUserMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof adminDisableUser>>,
     TError,
-    { role: Role; id: number },
+    { role: ManagedUserRole; id: number },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof adminDisableUser>>,
   TError,
-  { role: Role; id: number },
+  { role: ManagedUserRole; id: number },
   TContext
 > => {
   const mutationKey = ["adminDisableUser"];
@@ -1852,7 +1918,7 @@ export const getAdminDisableUserMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof adminDisableUser>>,
-    { role: Role; id: number }
+    { role: ManagedUserRole; id: number }
   > = (props) => {
     const { role, id } = props ?? {};
 
@@ -1878,14 +1944,14 @@ export const useAdminDisableUser = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof adminDisableUser>>,
     TError,
-    { role: Role; id: number },
+    { role: ManagedUserRole; id: number },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof adminDisableUser>>,
   TError,
-  { role: Role; id: number },
+  { role: ManagedUserRole; id: number },
   TContext
 > => {
   return useMutation(getAdminDisableUserMutationOptions(options));
@@ -1894,12 +1960,12 @@ export const useAdminDisableUser = <
 /**
  * @summary Admin — re-enable a previously disabled user
  */
-export const getAdminEnableUserUrl = (role: Role, id: number) => {
+export const getAdminEnableUserUrl = (role: ManagedUserRole, id: number) => {
   return `/api/admin/users/${role}/${id}/enable`;
 };
 
 export const adminEnableUser = async (
-  role: Role,
+  role: ManagedUserRole,
   id: number,
   options?: RequestInit,
 ): Promise<OkResponse> => {
@@ -1916,14 +1982,14 @@ export const getAdminEnableUserMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof adminEnableUser>>,
     TError,
-    { role: Role; id: number },
+    { role: ManagedUserRole; id: number },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof adminEnableUser>>,
   TError,
-  { role: Role; id: number },
+  { role: ManagedUserRole; id: number },
   TContext
 > => {
   const mutationKey = ["adminEnableUser"];
@@ -1937,7 +2003,7 @@ export const getAdminEnableUserMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof adminEnableUser>>,
-    { role: Role; id: number }
+    { role: ManagedUserRole; id: number }
   > = (props) => {
     const { role, id } = props ?? {};
 
@@ -1963,14 +2029,14 @@ export const useAdminEnableUser = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof adminEnableUser>>,
     TError,
-    { role: Role; id: number },
+    { role: ManagedUserRole; id: number },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof adminEnableUser>>,
   TError,
-  { role: Role; id: number },
+  { role: ManagedUserRole; id: number },
   TContext
 > => {
   return useMutation(getAdminEnableUserMutationOptions(options));
@@ -1979,12 +2045,12 @@ export const useAdminEnableUser = <
 /**
  * @summary Admin — update a user's profile fields
  */
-export const getAdminUpdateUserUrl = (role: Role, id: number) => {
+export const getAdminUpdateUserUrl = (role: ManagedUserRole, id: number) => {
   return `/api/admin/users/${role}/${id}`;
 };
 
 export const adminUpdateUser = async (
-  role: Role,
+  role: ManagedUserRole,
   id: number,
   adminUpdateUserRequest: AdminUpdateUserRequest,
   options?: RequestInit,
@@ -2004,14 +2070,18 @@ export const getAdminUpdateUserMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof adminUpdateUser>>,
     TError,
-    { role: Role; id: number; data: BodyType<AdminUpdateUserRequest> },
+    {
+      role: ManagedUserRole;
+      id: number;
+      data: BodyType<AdminUpdateUserRequest>;
+    },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof adminUpdateUser>>,
   TError,
-  { role: Role; id: number; data: BodyType<AdminUpdateUserRequest> },
+  { role: ManagedUserRole; id: number; data: BodyType<AdminUpdateUserRequest> },
   TContext
 > => {
   const mutationKey = ["adminUpdateUser"];
@@ -2025,7 +2095,11 @@ export const getAdminUpdateUserMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof adminUpdateUser>>,
-    { role: Role; id: number; data: BodyType<AdminUpdateUserRequest> }
+    {
+      role: ManagedUserRole;
+      id: number;
+      data: BodyType<AdminUpdateUserRequest>;
+    }
   > = (props) => {
     const { role, id, data } = props ?? {};
 
@@ -2051,14 +2125,18 @@ export const useAdminUpdateUser = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof adminUpdateUser>>,
     TError,
-    { role: Role; id: number; data: BodyType<AdminUpdateUserRequest> },
+    {
+      role: ManagedUserRole;
+      id: number;
+      data: BodyType<AdminUpdateUserRequest>;
+    },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof adminUpdateUser>>,
   TError,
-  { role: Role; id: number; data: BodyType<AdminUpdateUserRequest> },
+  { role: ManagedUserRole; id: number; data: BodyType<AdminUpdateUserRequest> },
   TContext
 > => {
   return useMutation(getAdminUpdateUserMutationOptions(options));
@@ -2067,12 +2145,12 @@ export const useAdminUpdateUser = <
 /**
  * @summary Admin — permanently remove a user from their vault
  */
-export const getAdminDeleteUserUrl = (role: Role, id: number) => {
+export const getAdminDeleteUserUrl = (role: ManagedUserRole, id: number) => {
   return `/api/admin/users/${role}/${id}`;
 };
 
 export const adminDeleteUser = async (
-  role: Role,
+  role: ManagedUserRole,
   id: number,
   options?: RequestInit,
 ): Promise<OkResponse> => {
@@ -2089,14 +2167,14 @@ export const getAdminDeleteUserMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof adminDeleteUser>>,
     TError,
-    { role: Role; id: number },
+    { role: ManagedUserRole; id: number },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof adminDeleteUser>>,
   TError,
-  { role: Role; id: number },
+  { role: ManagedUserRole; id: number },
   TContext
 > => {
   const mutationKey = ["adminDeleteUser"];
@@ -2110,7 +2188,7 @@ export const getAdminDeleteUserMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof adminDeleteUser>>,
-    { role: Role; id: number }
+    { role: ManagedUserRole; id: number }
   > = (props) => {
     const { role, id } = props ?? {};
 
@@ -2136,14 +2214,14 @@ export const useAdminDeleteUser = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof adminDeleteUser>>,
     TError,
-    { role: Role; id: number },
+    { role: ManagedUserRole; id: number },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof adminDeleteUser>>,
   TError,
-  { role: Role; id: number },
+  { role: ManagedUserRole; id: number },
   TContext
 > => {
   return useMutation(getAdminDeleteUserMutationOptions(options));

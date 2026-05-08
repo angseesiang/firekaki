@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { NokAccountInput } from "./nokAccountInput";
 import type { SignupRole } from "./signupRole";
 import type { VolunteerProfileInput } from "./volunteerProfileInput";
 import type { VulnerableProfileInput } from "./vulnerableProfileInput";
@@ -18,4 +19,5 @@ export interface SignupRequest {
   roles: SignupRole[];
   volunteer?: VolunteerProfileInput;
   vulnerable?: VulnerableProfileInput;
+  nokAccount?: NokAccountInput;
 }

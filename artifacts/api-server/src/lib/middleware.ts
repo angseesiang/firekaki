@@ -35,7 +35,7 @@ export function requireVolunteerOrHigher(
 ) {
   const u = req.session.user;
   if (!u) return sendError(res, 401, "Not authenticated");
-  if (u.role === "vulnerable")
+  if (u.role === "vulnerable" || u.role === "nok")
     return sendError(res, 403, "Volunteer role required");
   next();
 }

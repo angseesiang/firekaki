@@ -1,1 +1,1 @@
-export type Role = "admin" | "reviewer" | "volunteer" | "vulnerable";
+export type Role = "admin" | "reviewer" | "volunteer" | "vulnerable" | "nok";
