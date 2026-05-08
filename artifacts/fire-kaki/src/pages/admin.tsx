@@ -63,7 +63,7 @@ export default function AdminPage() {
               Dashboard
             </Link>
             <button
-              onClick={() => logout.mutate(undefined, { onSuccess: () => navigate("/login") })}
+              onClick={() => logout.mutate(undefined, { onSuccess: () => navigate("/") })}
               className="text-sm text-stone-600 hover:text-stone-900"
             >
               Sign out

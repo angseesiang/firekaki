@@ -30,11 +30,12 @@ export const sessionMiddleware = session({
   }),
   secret,
   resave: false,
+  rolling: true,
   saveUninitialized: false,
   cookie: {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env["NODE_ENV"] === "production",
-    maxAge: 1000 * 60 * 60 * 24 * 7,
+    maxAge: 1000 * 60 * 60 * 24 * 365,
   },
 });
