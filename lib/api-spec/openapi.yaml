@@ -331,6 +331,54 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /reviewer/users-overview:
+    get:
+      operationId: reviewerListUsers
+      tags: [auth]
+      summary: Reviewer — list every Volunteer and Vulnerable account (read-only)
+      responses:
+        "200":
+          description: All Volunteer + Vulnerable accounts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewerUsersOverview"
+        "403":
+          description: Reviewer or Admin role required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /reviewer/volunteer/{id}/verify:
+    post:
+      operationId: verifyVolunteer
+      tags: [auth]
+      summary: Reviewer — mark a Volunteer account verified
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Verified
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "403":
+          description: Reviewer or Admin role required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /reviewer/vulnerable/{id}/verify:
     post:
       operationId: verifyVulnerable
@@ -720,6 +768,8 @@ components:
           type: boolean
         emailVerified:
           type: boolean
+        verified:
+          type: boolean
         lastSeenAt:
           type: string
           format: date-time
@@ -727,7 +777,7 @@ components:
         createdAt:
           type: string
           format: date-time
-      required: [id, email, name, disabled, gpsConsent, emailVerified, createdAt]
+      required: [id, email, name, disabled, gpsConsent, emailVerified, verified, createdAt]
     AdminListVulnerable:
       type: object
       properties:
@@ -766,6 +816,18 @@ components:
         - nokRelation
         - nokContact
         - createdAt
+    ReviewerUsersOverview:
+      type: object
+      properties:
+        volunteers:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminListVolunteer"
+        vulnerables:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminListVulnerable"
+      required: [volunteers, vulnerables]
     AdminUsersOverview:
       type: object
       properties:

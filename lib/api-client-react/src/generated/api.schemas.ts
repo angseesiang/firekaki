@@ -122,6 +122,7 @@ export interface AdminListVolunteer {
   skills?: string | null;
   gpsConsent: boolean;
   emailVerified: boolean;
+  verified: boolean;
   lastSeenAt?: string | null;
   createdAt: string;
 }
@@ -138,6 +139,11 @@ export interface AdminListVulnerable {
   nokRelation: string;
   nokContact: string;
   createdAt: string;
+}
+
+export interface ReviewerUsersOverview {
+  volunteers: AdminListVolunteer[];
+  vulnerables: AdminListVulnerable[];
 }
 
 export interface AdminUsersOverview {

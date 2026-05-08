@@ -30,6 +30,7 @@ import type {
   OkResponse,
   PendingVulnerableList,
   RespondEmergencyRequest,
+  ReviewerUsersOverview,
   Role,
   SessionUser,
   SignupRequest,
@@ -1040,6 +1041,165 @@ export function useListPendingVulnerable<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Reviewer — list every Volunteer and Vulnerable account (read-only)
+ */
+export const getReviewerListUsersUrl = () => {
+  return `/api/reviewer/users-overview`;
+};
+
+export const reviewerListUsers = async (
+  options?: RequestInit,
+): Promise<ReviewerUsersOverview> => {
+  return customFetch<ReviewerUsersOverview>(getReviewerListUsersUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getReviewerListUsersQueryKey = () => {
+  return [`/api/reviewer/users-overview`] as const;
+};
+
+export const getReviewerListUsersQueryOptions = <
+  TData = Awaited<ReturnType<typeof reviewerListUsers>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof reviewerListUsers>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getReviewerListUsersQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof reviewerListUsers>>
+  > = ({ signal }) => reviewerListUsers({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof reviewerListUsers>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ReviewerListUsersQueryResult = NonNullable<
+  Awaited<ReturnType<typeof reviewerListUsers>>
+>;
+export type ReviewerListUsersQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Reviewer — list every Volunteer and Vulnerable account (read-only)
+ */
+
+export function useReviewerListUsers<
+  TData = Awaited<ReturnType<typeof reviewerListUsers>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof reviewerListUsers>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getReviewerListUsersQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Reviewer — mark a Volunteer account verified
+ */
+export const getVerifyVolunteerUrl = (id: number) => {
+  return `/api/reviewer/volunteer/${id}/verify`;
+};
+
+export const verifyVolunteer = async (
+  id: number,
+  options?: RequestInit,
+): Promise<OkResponse> => {
+  return customFetch<OkResponse>(getVerifyVolunteerUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getVerifyVolunteerMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof verifyVolunteer>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof verifyVolunteer>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["verifyVolunteer"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof verifyVolunteer>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return verifyVolunteer(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type VerifyVolunteerMutationResult = NonNullable<
+  Awaited<ReturnType<typeof verifyVolunteer>>
+>;
+
+export type VerifyVolunteerMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Reviewer — mark a Volunteer account verified
+ */
+export const useVerifyVolunteer = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof verifyVolunteer>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof verifyVolunteer>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getVerifyVolunteerMutationOptions(options));
+};
 
 /**
  * @summary Reviewer/Admin — mark a vulnerable account as verified

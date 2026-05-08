@@ -30,6 +30,7 @@ export * from "./pendingVulnerable";
 export * from "./pendingVulnerableList";
 export * from "./respondEmergencyRequest";
 export * from "./respondEmergencyRequestStatus";
+export * from "./reviewerUsersOverview";
 export * from "./role";
 export * from "./sessionUser";
 export * from "./signupRequest";

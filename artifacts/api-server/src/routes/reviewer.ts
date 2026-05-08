@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq, isNull, desc } from "drizzle-orm";
-import { db, vulnerableUsers } from "@workspace/db";
+import { eq, desc } from "drizzle-orm";
+import { db, vulnerableUsers, volunteerUsers } from "@workspace/db";
 import { requireReviewerOrHigher, sendError } from "../lib/middleware";
 
 const router: IRouter = Router();
@@ -31,6 +31,66 @@ router.get("/reviewer/pending-vulnerable", requireReviewerOrHigher, async (req, 
   }
 });
 
+router.get("/reviewer/users-overview", requireReviewerOrHigher, async (req, res) => {
+  try {
+    const [volunteers, vulnerables] = await Promise.all([
+      db.select().from(volunteerUsers).orderBy(desc(volunteerUsers.createdAt)),
+      db.select().from(vulnerableUsers).orderBy(desc(vulnerableUsers.createdAt)),
+    ]);
+    res.json({
+      volunteers: volunteers.map((v) => ({
+        id: v.id,
+        email: v.email,
+        name: v.name,
+        disabled: v.disabled,
+        skills: v.skills,
+        gpsConsent: v.gpsConsent,
+        emailVerified: v.emailVerifiedAt != null,
+        verified: v.verified,
+        lastSeenAt: v.lastSeenAt ? v.lastSeenAt.toISOString() : null,
+        createdAt: v.createdAt.toISOString(),
+      })),
+      vulnerables: vulnerables.map((v) => ({
+        id: v.id,
+        email: v.email,
+        name: v.name,
+        disabled: v.disabled,
+        verified: v.verified,
+        emailVerified: v.emailVerifiedAt != null,
+        address: v.address,
+        nokName: v.nokName,
+        nokRelation: v.nokRelation,
+        nokContact: v.nokContact,
+        createdAt: v.createdAt.toISOString(),
+      })),
+    });
+  } catch (err) {
+    req.log.error({ err }, "reviewer users overview failed");
+    sendError(res, 500, "Could not list users");
+  }
+});
+
+router.post(
+  "/reviewer/volunteer/:id/verify",
+  requireReviewerOrHigher,
+  async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return sendError(res, 400, "Invalid id");
+    try {
+      const updated = await db
+        .update(volunteerUsers)
+        .set({ verified: true })
+        .where(eq(volunteerUsers.id, id))
+        .returning({ id: volunteerUsers.id });
+      if (updated.length === 0) return sendError(res, 404, "Not found");
+      res.json({ ok: true });
+    } catch (err) {
+      req.log.error({ err }, "verify volunteer failed");
+      sendError(res, 500, "Could not verify");
+    }
+  },
+);
+
 router.post(
   "/reviewer/vulnerable/:id/verify",
   requireReviewerOrHigher,
@@ -51,7 +111,5 @@ router.post(
     }
   },
 );
-
-void isNull;
 
 export default router;

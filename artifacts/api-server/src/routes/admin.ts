@@ -120,6 +120,7 @@ router.get("/admin/users-overview", requireAdmin, async (req, res) => {
         skills: v.skills,
         gpsConsent: v.gpsConsent,
         emailVerified: v.emailVerifiedAt != null,
+        verified: v.verified,
         lastSeenAt: v.lastSeenAt ? v.lastSeenAt.toISOString() : null,
         createdAt: v.createdAt.toISOString(),
       })),

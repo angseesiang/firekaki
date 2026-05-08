@@ -14,6 +14,7 @@ export interface AdminListVolunteer {
   skills?: string | null;
   gpsConsent: boolean;
   emailVerified: boolean;
+  verified: boolean;
   lastSeenAt?: Date | null;
   createdAt: Date;
 }

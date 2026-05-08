@@ -62,14 +62,21 @@ export default function DashboardPage() {
             <span className="font-serif text-xl font-bold">Fire Kaki</span>
           </Link>
           <div className="flex items-center gap-4">
-            {isAdmin && (
+            {isAdmin ? (
               <Link
                 href="/admin"
                 className="text-sm font-medium text-stone-600 hover:text-[hsl(var(--primary))]"
               >
                 Manage users
               </Link>
-            )}
+            ) : isReviewerOrHigher ? (
+              <Link
+                href="/reviewer/users"
+                className="text-sm font-medium text-stone-600 hover:text-[hsl(var(--primary))]"
+              >
+                Manage users
+              </Link>
+            ) : null}
             <button
               onClick={() => logout.mutate(undefined, { onSuccess: () => navigate("/login") })}
               className="text-sm text-stone-600 hover:text-stone-900"

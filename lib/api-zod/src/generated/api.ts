@@ -241,6 +241,52 @@ export const ListPendingVulnerableResponse = zod.object({
 });
 
 /**
+ * @summary Reviewer — list every Volunteer and Vulnerable account (read-only)
+ */
+export const ReviewerListUsersResponse = zod.object({
+  volunteers: zod.array(
+    zod.object({
+      id: zod.number(),
+      email: zod.string(),
+      name: zod.string(),
+      disabled: zod.boolean(),
+      skills: zod.string().nullish(),
+      gpsConsent: zod.boolean(),
+      emailVerified: zod.boolean(),
+      verified: zod.boolean(),
+      lastSeenAt: zod.coerce.date().nullish(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+  vulnerables: zod.array(
+    zod.object({
+      id: zod.number(),
+      email: zod.string(),
+      name: zod.string(),
+      disabled: zod.boolean(),
+      verified: zod.boolean(),
+      emailVerified: zod.boolean(),
+      address: zod.string(),
+      nokName: zod.string(),
+      nokRelation: zod.string(),
+      nokContact: zod.string(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+});
+
+/**
+ * @summary Reviewer — mark a Volunteer account verified
+ */
+export const VerifyVolunteerParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const VerifyVolunteerResponse = zod.object({
+  ok: zod.boolean(),
+});
+
+/**
  * @summary Reviewer/Admin — mark a vulnerable account as verified
  */
 export const VerifyVulnerableParams = zod.object({
@@ -294,6 +340,7 @@ export const AdminListAllUsersResponse = zod.object({
       skills: zod.string().nullish(),
       gpsConsent: zod.boolean(),
       emailVerified: zod.boolean(),
+      verified: zod.boolean(),
       lastSeenAt: zod.coerce.date().nullish(),
       createdAt: zod.coerce.date(),
     }),
