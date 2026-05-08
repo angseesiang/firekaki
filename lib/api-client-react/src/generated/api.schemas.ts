@@ -59,7 +59,7 @@ export interface SignupRequest {
 export interface LoginRequest {
   email: string;
   password: string;
-  role: Role;
+  role?: Role;
 }
 
 export type EmailVerifiedRole =

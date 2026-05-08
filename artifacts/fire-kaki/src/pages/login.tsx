@@ -2,28 +2,19 @@ import { useState, type FormEvent } from "react";
 import { Link, useLocation } from "wouter";
 import { Flame, ArrowLeft } from "lucide-react";
 import { useLogin } from "@/lib/auth";
-import type { LoginRequest } from "@workspace/api-client-react";
-
-const ROLES: Array<{ value: LoginRequest["role"]; label: string }> = [
-  { value: "vulnerable", label: "Vulnerable" },
-  { value: "volunteer", label: "Volunteer" },
-  { value: "reviewer", label: "Reviewer" },
-  { value: "admin", label: "Admin" },
-];
 
 export default function LoginPage() {
   const [, navigate] = useLocation();
   const login = useLogin();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<LoginRequest["role"]>("volunteer");
   const [error, setError] = useState<string | null>(null);
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
     login.mutate(
-      { email, password, role },
+      { email, password },
       {
         onSuccess: () => navigate("/dashboard"),
         onError: (err) => {
@@ -62,28 +53,6 @@ export default function LoginPage() {
           </p>
 
           <form onSubmit={onSubmit} className="space-y-5">
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 mb-2">
-                Sign in as
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {ROLES.map((r) => (
-                  <button
-                    type="button"
-                    key={r.value}
-                    onClick={() => setRole(r.value)}
-                    className={`px-3 py-2 rounded-lg border text-sm font-medium transition ${
-                      role === r.value
-                        ? "border-[hsl(var(--primary))] bg-[hsl(var(--primary))]/5 text-[hsl(var(--primary))]"
-                        : "border-stone-200 text-stone-700 hover:border-stone-300"
-                    }`}
-                  >
-                    {r.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 mb-2">
                 Email

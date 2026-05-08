@@ -296,7 +296,6 @@ components:
       required:
         - email
         - password
-        - role
     EmailVerified:
       type: object
       properties:

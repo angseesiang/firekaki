@@ -10,5 +10,5 @@ import type { Role } from "./role";
 export interface LoginRequest {
   email: string;
   password: string;
-  role: Role;
+  role?: Role;
 }

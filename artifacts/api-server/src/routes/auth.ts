@@ -323,26 +323,35 @@ router.post("/auth/login", async (req, res) => {
   if (!parsed.success) {
     return sendError(res, 400, parsed.error.issues[0]?.message ?? "Invalid input");
   }
-  const { email, password, role } = parsed.data;
+  const { email, password } = parsed.data;
   const emailNorm = email.trim().toLowerCase();
-  const table = tableForRole(role);
 
-  const rows = await db
-    .select()
-    .from(table)
-    .where(eq(table.email, emailNorm))
-    .limit(1);
-  const user = rows[0];
-  if (!user) return sendError(res, 401, "Invalid email or password");
+  // Search vaults in priority order; first matching email+password wins.
+  const order: Role[] = ["admin", "reviewer", "volunteer", "vulnerable"];
+  let matched: { user: { id: number; email: string; name: string; passwordHash: string }; role: Role } | null = null;
+  for (const r of order) {
+    const t = tableForRole(r);
+    const rows = await db
+      .select()
+      .from(t)
+      .where(eq(t.email, emailNorm))
+      .limit(1);
+    const candidate = rows[0];
+    if (!candidate) continue;
+    const ok = await bcrypt.compare(password, candidate.passwordHash);
+    if (ok) {
+      matched = { user: candidate, role: r };
+      break;
+    }
+  }
+  if (!matched) return sendError(res, 401, "Invalid email or password");
 
-  const ok = await bcrypt.compare(password, user.passwordHash);
-  if (!ok) return sendError(res, 401, "Invalid email or password");
-
+  const { user, role } = matched;
   const verified =
-    role === "vulnerable" ? (user as { verified: boolean }).verified : undefined;
+    role === "vulnerable" ? (user as unknown as { verified: boolean }).verified : undefined;
   const emailVerified =
     role === "volunteer" || role === "vulnerable"
-      ? Boolean((user as { emailVerifiedAt: Date | null }).emailVerifiedAt)
+      ? Boolean((user as unknown as { emailVerifiedAt: Date | null }).emailVerifiedAt)
       : true;
 
   const sessionUser: SessionUser = {
