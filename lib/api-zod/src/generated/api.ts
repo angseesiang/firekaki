@@ -423,6 +423,35 @@ export const VerifyVulnerableResponse = zod.object({
 });
 
 /**
+ * @summary Reviewer/Admin — edit a Volunteer or Vulnerable account (partial)
+ */
+export const ReviewerUpdateUserParams = zod.object({
+  role: zod.enum(["volunteer", "vulnerable"]),
+  id: zod.coerce.number(),
+});
+
+export const reviewerUpdateUserBodyPasswordMin = 8;
+
+export const ReviewerUpdateUserBody = zod
+  .object({
+    name: zod.string().optional(),
+    email: zod.string().optional(),
+    password: zod.string().min(reviewerUpdateUserBodyPasswordMin).optional(),
+    skills: zod.string().nullish().describe("Volunteer only."),
+    address: zod.string().optional().describe("Vulnerable only."),
+    nokName: zod.string().optional().describe("Vulnerable only."),
+    nokRelation: zod.string().optional().describe("Vulnerable only."),
+    nokContact: zod.string().optional().describe("Vulnerable only."),
+  })
+  .describe(
+    "All fields optional. Only provided fields are updated. Per-role extras are ignored when not applicable.",
+  );
+
+export const ReviewerUpdateUserResponse = zod.object({
+  ok: zod.boolean(),
+});
+
+/**
  * @summary Volunteer — share current GPS location
  */
 export const UpdateVolunteerLocationBody = zod.object({

@@ -1371,6 +1371,117 @@ export const useVerifyVulnerable = <
 };
 
 /**
+ * @summary Reviewer/Admin — edit a Volunteer or Vulnerable account (partial)
+ */
+export const getReviewerUpdateUserUrl = (
+  role: "volunteer" | "vulnerable",
+  id: number,
+) => {
+  return `/api/reviewer/users/${role}/${id}`;
+};
+
+export const reviewerUpdateUser = async (
+  role: "volunteer" | "vulnerable",
+  id: number,
+  adminUpdateUserRequest: AdminUpdateUserRequest,
+  options?: RequestInit,
+): Promise<OkResponse> => {
+  return customFetch<OkResponse>(getReviewerUpdateUserUrl(role, id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(adminUpdateUserRequest),
+  });
+};
+
+export const getReviewerUpdateUserMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof reviewerUpdateUser>>,
+    TError,
+    {
+      role: "volunteer" | "vulnerable";
+      id: number;
+      data: BodyType<AdminUpdateUserRequest>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof reviewerUpdateUser>>,
+  TError,
+  {
+    role: "volunteer" | "vulnerable";
+    id: number;
+    data: BodyType<AdminUpdateUserRequest>;
+  },
+  TContext
+> => {
+  const mutationKey = ["reviewerUpdateUser"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof reviewerUpdateUser>>,
+    {
+      role: "volunteer" | "vulnerable";
+      id: number;
+      data: BodyType<AdminUpdateUserRequest>;
+    }
+  > = (props) => {
+    const { role, id, data } = props ?? {};
+
+    return reviewerUpdateUser(role, id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ReviewerUpdateUserMutationResult = NonNullable<
+  Awaited<ReturnType<typeof reviewerUpdateUser>>
+>;
+export type ReviewerUpdateUserMutationBody = BodyType<AdminUpdateUserRequest>;
+export type ReviewerUpdateUserMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Reviewer/Admin — edit a Volunteer or Vulnerable account (partial)
+ */
+export const useReviewerUpdateUser = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof reviewerUpdateUser>>,
+    TError,
+    {
+      role: "volunteer" | "vulnerable";
+      id: number;
+      data: BodyType<AdminUpdateUserRequest>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof reviewerUpdateUser>>,
+  TError,
+  {
+    role: "volunteer" | "vulnerable";
+    id: number;
+    data: BodyType<AdminUpdateUserRequest>;
+  },
+  TContext
+> => {
+  return useMutation(getReviewerUpdateUserMutationOptions(options));
+};
+
+/**
  * @summary Volunteer — share current GPS location
  */
 export const getUpdateVolunteerLocationUrl = () => {
