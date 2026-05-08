@@ -60,7 +60,7 @@ function Navbar() {
       <div className="container mx-auto px-6 h-16 flex items-center justify-between">
         <a href="#" className="flex items-center gap-2 font-serif text-2xl font-bold tracking-tight text-primary hover:opacity-80 transition-opacity">
           <Flame className="w-6 h-6" />
-          <span>About FireKaki</span>
+          <span>Fire Kaki</span>
         </a>
         <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-muted-foreground">
           {navLinks.map(link => (
