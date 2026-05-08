@@ -172,10 +172,6 @@ export default function SignupPage() {
                   </div>
                 </button>
               </div>
-              <p className="text-xs text-stone-500 mt-2">
-                Want both? Complete this signup, then sign up again with the same
-                email and the other role.
-              </p>
             </div>
 
             {asVolunteer && (
