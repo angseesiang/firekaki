@@ -1332,6 +1332,9 @@ components:
           type: boolean
         emailVerified:
           type: boolean
+        sessionToken:
+          type: string
+          description: Signed session token returned on signup/login/me. Mobile clients send it as an Authorization Bearer header on subsequent requests.
       required:
         - id
         - email

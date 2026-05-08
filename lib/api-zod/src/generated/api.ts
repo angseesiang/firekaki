@@ -59,6 +59,12 @@ export const SignupResponse = zod.object({
   role: zod.enum(["admin", "reviewer", "volunteer", "vulnerable", "nok"]),
   verified: zod.boolean().optional(),
   emailVerified: zod.boolean(),
+  sessionToken: zod
+    .string()
+    .optional()
+    .describe(
+      "Signed session token returned on signup\/login\/me. Mobile clients send it as an Authorization Bearer header on subsequent requests.",
+    ),
 });
 
 /**
@@ -79,6 +85,12 @@ export const LoginResponse = zod.object({
   role: zod.enum(["admin", "reviewer", "volunteer", "vulnerable", "nok"]),
   verified: zod.boolean().optional(),
   emailVerified: zod.boolean(),
+  sessionToken: zod
+    .string()
+    .optional()
+    .describe(
+      "Signed session token returned on signup\/login\/me. Mobile clients send it as an Authorization Bearer header on subsequent requests.",
+    ),
 });
 
 /**
@@ -674,4 +686,10 @@ export const GetMeResponse = zod.object({
   role: zod.enum(["admin", "reviewer", "volunteer", "vulnerable", "nok"]),
   verified: zod.boolean().optional(),
   emailVerified: zod.boolean(),
+  sessionToken: zod
+    .string()
+    .optional()
+    .describe(
+      "Signed session token returned on signup\/login\/me. Mobile clients send it as an Authorization Bearer header on subsequent requests.",
+    ),
 });

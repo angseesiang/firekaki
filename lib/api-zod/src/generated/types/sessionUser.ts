@@ -14,4 +14,6 @@ export interface SessionUser {
   role: Role;
   verified?: boolean;
   emailVerified: boolean;
+  /** Signed session token returned on signup/login/me. Mobile clients send it as an Authorization Bearer header on subsequent requests. */
+  sessionToken?: string;
 }

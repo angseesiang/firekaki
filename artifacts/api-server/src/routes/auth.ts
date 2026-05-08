@@ -23,6 +23,13 @@ import {
 } from "@workspace/api-zod";
 import type { Role } from "./auth-types";
 import { sendVerificationEmail } from "../lib/email";
+import { signSessionToken } from "../lib/auth-bridge";
+
+function withToken<T extends object>(req: Request, user: T): T & { sessionToken?: string } {
+  const sid = req.sessionID;
+  if (!sid) return user;
+  return { ...user, sessionToken: signSessionToken(sid) };
+}
 
 const router: IRouter = Router();
 
@@ -283,7 +290,7 @@ router.post("/auth/signup", async (req, res) => {
     req.log.error({ err }, "session regenerate failed");
     return sendError(res, 500, "Could not start session");
   }
-  res.json(SignupResponse.parse(sessionUser));
+  res.json(SignupResponse.parse(withToken(req, sessionUser)));
 });
 
 router.get("/auth/verify", async (req, res) => {
@@ -445,7 +452,7 @@ router.post("/auth/login", async (req, res) => {
     req.log.error({ err }, "session regenerate failed");
     return sendError(res, 500, "Could not start session");
   }
-  res.json(LoginResponse.parse(sessionUser));
+  res.json(LoginResponse.parse(withToken(req, sessionUser)));
 });
 
 router.post("/auth/logout", (req, res) => {
@@ -458,7 +465,7 @@ router.post("/auth/logout", (req, res) => {
 router.get("/auth/me", (req: Request, res) => {
   const u = req.session.user;
   if (!u) return sendError(res, 401, "Not authenticated");
-  res.json(GetMeResponse.parse(u));
+  res.json(GetMeResponse.parse(withToken(req, u)));
 });
 
 export default router;

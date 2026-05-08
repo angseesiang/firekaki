@@ -1,0 +1,27 @@
+kind = "mobile"
+previewPath = "/mobile/"
+title = "Fire Kaki Mobile"
+version = "1.0.0"
+id = "artifacts/fire-kaki-mobile"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+ensurePreviewReachable = "/status"
+name = "expo"
+paths = [ "/mobile/" ]
+localPort = 18403
+
+[services.development]
+run = "pnpm --filter @workspace/fire-kaki-mobile run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/fire-kaki-mobile", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/fire-kaki-mobile", "run", "serve" ]
+
+[services.env]
+PORT = "18403"
+BASE_PATH = "/mobile/"

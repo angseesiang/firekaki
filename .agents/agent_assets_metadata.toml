@@ -1,0 +1,8 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "aT7cKsoK1V-77m_bL6tju"
+uri = "file://artifacts/fire-kaki-mobile/assets/images/icon.png"
+type = "image"
+title = "fire kaki app icon"
