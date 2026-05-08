@@ -90,6 +90,17 @@ export default function DashboardPage() {
           )}
         </div>
 
+        {u.role === "admin" && (
+          <div className="mt-6">
+            <Link
+              href="/admin"
+              className="inline-flex items-center gap-2 bg-[hsl(var(--primary))] text-white rounded-lg px-4 py-2 text-sm font-medium hover:opacity-90 transition"
+            >
+              Create Reviewer or Admin account
+            </Link>
+          </div>
+        )}
+
         <p className="text-xs text-stone-500 mt-8">
           Logged in to the <span className="font-mono">{u.role}_users</span>{" "}
           vault · Email <span className="font-mono">{u.email}</span>

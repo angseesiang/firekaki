@@ -62,6 +62,28 @@ export interface LoginRequest {
   role: Role;
 }
 
+export type AdminRole = (typeof AdminRole)[keyof typeof AdminRole];
+
+export const AdminRole = {
+  reviewer: "reviewer",
+  admin: "admin",
+} as const;
+
+export interface AdminCreateUserRequest {
+  email: string;
+  /** @minLength 8 */
+  password: string;
+  name: string;
+  role: AdminRole;
+}
+
+export interface AdminCreatedUser {
+  id: number;
+  email: string;
+  name: string;
+  role: AdminRole;
+}
+
 export interface SessionUser {
   id: number;
   email: string;

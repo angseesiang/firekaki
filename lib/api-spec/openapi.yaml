@@ -92,6 +92,48 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/OkResponse"
+  /admin/users:
+    post:
+      operationId: adminCreateUser
+      tags: [auth]
+      summary: Admin-only — create a Reviewer or Admin account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminCreateUserRequest"
+      responses:
+        "200":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminCreatedUser"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Admin role required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Email already registered for that role
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /auth/me:
     get:
       operationId: getMe
@@ -200,6 +242,42 @@ components:
       required:
         - email
         - password
+        - role
+    AdminRole:
+      type: string
+      enum: [reviewer, admin]
+    AdminCreateUserRequest:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+          minLength: 8
+        name:
+          type: string
+        role:
+          $ref: "#/components/schemas/AdminRole"
+      required:
+        - email
+        - password
+        - name
+        - role
+    AdminCreatedUser:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        name:
+          type: string
+        role:
+          $ref: "#/components/schemas/AdminRole"
+      required:
+        - id
+        - email
+        - name
         - role
     SessionUser:
       type: object

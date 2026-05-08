@@ -34,7 +34,7 @@ A neighbour-powered first-response network for Singapore's most vulnerable — p
 
 - Each role gets its own isolated "vault" table — `admin_users`, `reviewer_users`, `volunteer_users`, `vulnerable_users` — so the same email can register independently as Volunteer and Vulnerable. Login requires a role to disambiguate.
 - Sessions are stored in Postgres via `connect-pg-simple` (table `session`, auto-created on first run) so they survive restarts.
-- Reviewer and Admin accounts are not self-registerable; they must be seeded by an Admin (out of scope for this slice).
+- Reviewer and Admin accounts are not self-registerable. Bootstrap the first Admin with `pnpm --filter @workspace/scripts run seed-admin` (env vars `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME`, or positional args). Once signed in as Admin, use `/admin` to create more Reviewer or Admin accounts (POST `/api/admin/users`, gated by `requireAdmin` middleware).
 
 ## Product
 
@@ -42,6 +42,7 @@ A neighbour-powered first-response network for Singapore's most vulnerable — p
 - `/signup` — register as Volunteer and/or Vulnerable (creates a row in each chosen vault)
 - `/login` — sign in with email + password + role
 - `/dashboard` — post-login landing showing role, vault, and verification status
+- `/admin` — Admin-only page to create Reviewer or Admin accounts
 
 ## User preferences
 

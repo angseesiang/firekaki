@@ -74,6 +74,25 @@ export const LogoutResponse = zod.object({
 });
 
 /**
+ * @summary Admin-only — create a Reviewer or Admin account
+ */
+export const adminCreateUserBodyPasswordMin = 8;
+
+export const AdminCreateUserBody = zod.object({
+  email: zod.string(),
+  password: zod.string().min(adminCreateUserBodyPasswordMin),
+  name: zod.string(),
+  role: zod.enum(["reviewer", "admin"]),
+});
+
+export const AdminCreateUserResponse = zod.object({
+  id: zod.number(),
+  email: zod.string(),
+  name: zod.string(),
+  role: zod.enum(["reviewer", "admin"]),
+});
+
+/**
  * @summary Get the current session user
  */
 export const GetMeResponse = zod.object({
