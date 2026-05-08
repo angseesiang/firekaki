@@ -196,7 +196,9 @@ export const ListEmergenciesResponse = zod.object({
           }),
         )
         .nullish()
-        .describe("Per-volunteer responder rows. Reviewer\/Admin scope only."),
+        .describe(
+          "Per-volunteer responder rows with name, distance and live ETA. Returned to Reviewer\/Admin (all emergencies) and to the Vulnerable creator + their NOK (their own emergency only).",
+        ),
     }),
   ),
 });
@@ -275,7 +277,9 @@ export const CreateEmergencyResponse = zod.object({
       }),
     )
     .nullish()
-    .describe("Per-volunteer responder rows. Reviewer\/Admin scope only."),
+    .describe(
+      "Per-volunteer responder rows with name, distance and live ETA. Returned to Reviewer\/Admin (all emergencies) and to the Vulnerable creator + their NOK (their own emergency only).",
+    ),
 });
 
 /**
@@ -348,7 +352,9 @@ export const DeactivateEmergencyResponse = zod.object({
       }),
     )
     .nullish()
-    .describe("Per-volunteer responder rows. Reviewer\/Admin scope only."),
+    .describe(
+      "Per-volunteer responder rows with name, distance and live ETA. Returned to Reviewer\/Admin (all emergencies) and to the Vulnerable creator + their NOK (their own emergency only).",
+    ),
 });
 
 /**

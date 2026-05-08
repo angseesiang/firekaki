@@ -252,13 +252,7 @@ function NokPanel({ name }: { name: string }) {
           {active.address && (
             <p className="text-sm text-stone-700 mt-1">{active.address}</p>
           )}
-          {active.responseStats && (
-            <p className="text-xs text-stone-700 mt-3">
-              <span className="font-semibold">{active.responseStats.accepted}</span> volunteer(s)
-              on the way · <span className="font-semibold">{active.responseStats.arrived}</span>{" "}
-              arrived.
-            </p>
-          )}
+          <ResponderStatus emergency={active} />
         </div>
       ) : (
         <div className="mt-6 bg-green-50 border border-green-200 rounded-2xl p-5 text-sm text-green-800 inline-flex items-center gap-2">
@@ -281,6 +275,83 @@ function NokPanel({ name }: { name: string }) {
   );
 }
 
+/* ─────────── shared: live responder/ETA card ─────────── */
+
+function formatLiveEta(seconds: number | null | undefined): string {
+  if (seconds == null) return "calculating…";
+  if (seconds < 60) return "less than 1 min";
+  const mins = Math.round(seconds / 60);
+  return `~${mins} min`;
+}
+
+function formatDistance(m: number | null | undefined): string | null {
+  if (m == null) return null;
+  if (m < 1000) return `${Math.round(m)} m`;
+  return `${(m / 1000).toFixed(1)} km`;
+}
+
+function ResponderStatus({ emergency }: { emergency: Emergency }) {
+  const stats = emergency.responseStats;
+  const responders = emergency.responders ?? [];
+  const accepted = stats?.accepted ?? responders.length;
+  const arrived = stats?.arrived ?? responders.filter((r) => r.arrivedAt).length;
+
+  return (
+    <div className="mt-4 space-y-3">
+      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+        <span className="text-3xl font-serif font-bold text-[hsl(var(--primary))]">
+          {accepted}
+        </span>
+        <span className="text-sm text-stone-700">
+          neighbour{accepted === 1 ? "" : "s"} accepted
+          {arrived > 0 && (
+            <>
+              {" · "}
+              <span className="font-semibold text-green-700">{arrived} arrived</span>
+            </>
+          )}
+        </span>
+      </div>
+
+      {accepted === 0 ? (
+        <p className="text-xs text-stone-600">
+          Waiting for the first neighbour to accept… you'll see them here the moment they do.
+        </p>
+      ) : (
+        <ul className="divide-y divide-red-100 border border-red-100 bg-white rounded-lg overflow-hidden">
+          {responders.map((r) => {
+            const dist = formatDistance(r.distanceM);
+            return (
+              <li
+                key={r.volunteerId}
+                className="px-3 py-2 flex items-center justify-between gap-3 text-sm"
+              >
+                <div className="min-w-0">
+                  <p className="font-semibold text-stone-900 truncate">{r.name}</p>
+                  {dist && (
+                    <p className="text-xs text-stone-500">{dist} away</p>
+                  )}
+                </div>
+                {r.arrivedAt ? (
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-50 border border-green-200 rounded-md px-2 py-1 whitespace-nowrap">
+                    <CheckCircle2 className="w-3 h-3" />
+                    Arrived
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-[hsl(var(--primary))] bg-red-50 border border-red-200 rounded-md px-2 py-1 whitespace-nowrap">
+                    <MapPin className="w-3 h-3" />
+                    ETA {formatLiveEta(r.etaSeconds)}
+                  </span>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 /* ─────────── VULNERABLE: request help + own history ─────────── */
 
 function VulnerablePanel({ name, verified }: { name: string; verified: boolean }) {
@@ -289,6 +360,12 @@ function VulnerablePanel({ name, verified }: { name: string; verified: boolean }
     queryKey: ["/api/vulnerable/me"] as const,
     queryFn: () => getVulnerableMe({ credentials: "include" }),
   });
+  const list = useQuery({
+    queryKey: EMERGENCIES_KEY,
+    queryFn: () => listEmergencies({ credentials: "include" }),
+    refetchInterval: 8_000,
+  });
+  const activeEmergency = list.data?.emergencies.find((e) => e.status === "active");
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [submitErr, setSubmitErr] = useState<string | null>(null);
   const [submitOk, setSubmitOk] = useState(false);
@@ -392,6 +469,19 @@ function VulnerablePanel({ name, verified }: { name: string; verified: boolean }
         <p className="mb-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
           {submitErr}
         </p>
+      )}
+
+      {activeEmergency && (
+        <div className="mt-2 mb-6 bg-red-50 border-2 border-[hsl(var(--primary))] rounded-2xl p-5 text-left shadow-sm">
+          <div className="flex items-center gap-2 text-[hsl(var(--primary))] font-bold uppercase tracking-wider text-xs">
+            <Siren className="w-4 h-4" />
+            Help is on the way
+          </div>
+          <p className="mt-2 text-sm text-stone-700">
+            Sent at {new Date(activeEmergency.createdAt).toLocaleTimeString()}.
+          </p>
+          <ResponderStatus emergency={activeEmergency} />
+        </div>
       )}
 
       {p && (

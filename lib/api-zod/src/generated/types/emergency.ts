@@ -31,6 +31,6 @@ export interface Emergency {
   /** When the current Volunteer marked themselves arrived (volunteer scope only). */
   myArrivedAt?: Date | null;
   responseStats?: EmergencyResponseStats | null;
-  /** Per-volunteer responder rows. Reviewer/Admin scope only. */
+  /** Per-volunteer responder rows with name, distance and live ETA. Returned to Reviewer/Admin (all emergencies) and to the Vulnerable creator + their NOK (their own emergency only). */
   responders?: EmergencyResponder[] | null;
 }

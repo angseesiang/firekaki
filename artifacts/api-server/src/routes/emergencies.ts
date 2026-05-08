@@ -335,8 +335,14 @@ router.get("/emergencies", requireAuth, async (req, res) => {
         });
       });
     } else {
-      // reviewer / admin / vulnerable
-      const includeResponders = u.role === "reviewer" || u.role === "admin";
+      // reviewer / admin / vulnerable / nok — all are already scoped to
+      // emergencies they're entitled to see, so include responder details
+      // (names + ETA) so the caller and their NOK can watch help arrive.
+      const includeResponders =
+        u.role === "reviewer" ||
+        u.role === "admin" ||
+        u.role === "vulnerable" ||
+        u.role === "nok";
       serialized = scoped.map((e) =>
         serialize(e, {
           responseStats: statsFor(e.id),

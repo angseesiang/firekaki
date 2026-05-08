@@ -1152,7 +1152,7 @@ components:
         responders:
           type: array
           nullable: true
-          description: Per-volunteer responder rows. Reviewer/Admin scope only.
+          description: Per-volunteer responder rows with name, distance and live ETA. Returned to Reviewer/Admin (all emergencies) and to the Vulnerable creator + their NOK (their own emergency only).
           items:
             $ref: "#/components/schemas/EmergencyResponder"
       required:
