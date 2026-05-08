@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, Pressable, View } from "react-native";
+import { Alert, Platform, Pressable, View } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -67,12 +67,18 @@ export default function DashboardScreen() {
           </Heading>
         </View>
         <Pressable
-          onPress={() =>
+          onPress={() => {
+            if (Platform.OS === "web") {
+              if (typeof window !== "undefined" && window.confirm("End your session?")) {
+                void logout();
+              }
+              return;
+            }
             Alert.alert("Sign out", "End your session?", [
               { text: "Cancel", style: "cancel" },
-              { text: "Sign out", style: "destructive", onPress: () => logout() },
-            ])
-          }
+              { text: "Sign out", style: "destructive", onPress: () => void logout() },
+            ]);
+          }}
           hitSlop={12}
         >
           <Ionicons name="log-out-outline" size={26} color={c.foreground} />
