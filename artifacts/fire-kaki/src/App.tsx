@@ -8,7 +8,7 @@ import LoginPage from "@/pages/login";
 import SignupPage from "@/pages/signup";
 import DashboardPage from "@/pages/dashboard";
 import AdminPage from "@/pages/admin";
-import ReviewerUsersPage from "@/pages/reviewer-users";
+import ReviewerPage from "@/pages/reviewer";
 import MyRequestsPage from "@/pages/my-requests";
 import VerifyPage from "@/pages/verify";
 
@@ -22,7 +22,8 @@ function Router() {
       <Route path="/signup" component={SignupPage} />
       <Route path="/dashboard" component={DashboardPage} />
       <Route path="/admin" component={AdminPage} />
-      <Route path="/reviewer/users" component={ReviewerUsersPage} />
+      <Route path="/reviewer" component={ReviewerPage} />
+      <Route path="/reviewer/users" component={ReviewerPage} />
       <Route path="/my-requests" component={MyRequestsPage} />
       <Route path="/verify" component={VerifyPage} />
       <Route component={NotFound} />

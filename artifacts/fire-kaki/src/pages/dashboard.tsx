@@ -42,7 +42,10 @@ export default function DashboardPage() {
   const [, navigate] = useLocation();
 
   useEffect(() => {
-    if (!me.isLoading && !me.data) navigate("/login");
+    if (me.isLoading) return;
+    if (!me.data) navigate("/login");
+    else if (me.data.role === "admin") navigate("/admin");
+    else if (me.data.role === "reviewer") navigate("/reviewer");
   }, [me.isLoading, me.data, navigate]);
 
   if (me.isLoading || !me.data) {

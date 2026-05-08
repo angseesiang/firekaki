@@ -1,36 +1,77 @@
-import { useEffect, useState, type FormEvent } from "react";
-import { Link, useLocation } from "wouter";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useLocation } from "wouter";
 import {
-  Flame,
-  ArrowLeft,
-  ShieldPlus,
-  CheckCircle2,
+  Activity,
+  ShieldCheck,
+  Users,
+  Heart,
+  AlertTriangle,
+  Pencil,
   Power,
   Trash2,
   UserX,
-  Pencil,
+  ShieldPlus,
+  CheckCircle2,
+  PowerOff,
+  Plus,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  adminCreateUser,
   adminListAllUsers,
+  adminCreateUser,
   adminDisableUser,
   adminEnableUser,
   adminDeleteUser,
-  adminUpdateUser,
+  listEmergencies,
+  deactivateEmergency,
+  verifyVolunteer,
+  verifyVulnerable,
   type AdminCreateUserRequest,
-  type AdminUpdateUserRequest,
   type AdminCreatedUser,
+  type AdminUsersOverview,
+  type Emergency,
   type ManagedUserRole,
 } from "@workspace/api-client-react";
 import { useMe, useLogout } from "@/lib/auth";
+import {
+  DashShell,
+  StatCard,
+  StatusBadge,
+  SectionHeading,
+  type SectionDef,
+} from "@/components/dash-shell";
+import {
+  UserEditModal,
+  type EditableRow,
+  type EditableUserRole,
+} from "@/components/user-edit-modal";
 
 const USERS_KEY = ["/api/admin/users-overview"] as const;
+const EMERG_KEY = ["/api/emergencies"] as const;
+
+type SectionKey =
+  | "overview"
+  | "verifications"
+  | "volunteers"
+  | "vulnerable"
+  | "emergencies"
+  | "staff";
+
+const SECTIONS: SectionDef<SectionKey>[] = [
+  { key: "overview", label: "Overview", icon: Activity },
+  { key: "verifications", label: "Verifications", icon: ShieldCheck },
+  { key: "volunteers", label: "Volunteers", icon: Users },
+  { key: "vulnerable", label: "Vulnerable", icon: Heart },
+  { key: "emergencies", label: "Live emergencies", icon: AlertTriangle },
+  { key: "staff", label: "Staff", icon: ShieldPlus },
+];
 
 export default function AdminPage() {
   const me = useMe();
   const logout = useLogout();
   const [, navigate] = useLocation();
+  const [section, setSection] = useState<SectionKey>("overview");
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     if (me.isLoading) return;
@@ -38,62 +79,646 @@ export default function AdminPage() {
     else if (me.data.role !== "admin") navigate("/dashboard");
   }, [me.isLoading, me.data, navigate]);
 
+  const overview = useQuery({
+    queryKey: USERS_KEY,
+    queryFn: () => adminListAllUsers({ credentials: "include" }),
+    enabled: me.data?.role === "admin",
+  });
+  const emergencies = useQuery({
+    queryKey: EMERG_KEY,
+    queryFn: () => listEmergencies({ credentials: "include" }),
+    enabled: me.data?.role === "admin",
+    refetchInterval: 8_000,
+  });
+
   if (me.isLoading || !me.data || me.data.role !== "admin") {
     return (
-      <div className="min-h-screen bg-[hsl(var(--background))] flex items-center justify-center">
+      <div className="min-h-screen bg-stone-100 flex items-center justify-center">
         <p className="text-stone-500">Loading…</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[hsl(var(--background))]">
-      <header className="border-b border-stone-200 bg-white">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 text-[hsl(var(--primary))]">
-            <Flame className="w-5 h-5" />
-            <span className="font-serif text-xl font-bold">Fire Kaki</span>
-          </Link>
-          <div className="flex items-center gap-4">
-            <Link
-              href="/dashboard"
-              className="flex items-center gap-1.5 text-sm font-medium text-stone-600 hover:text-[hsl(var(--primary))]"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Dashboard
-            </Link>
-            <button
-              onClick={() => logout.mutate(undefined, { onSuccess: () => navigate("/") })}
-              className="text-sm text-stone-600 hover:text-stone-900"
-            >
-              Sign out
-            </button>
+    <DashShell
+      brand="Fire Kaki Admin"
+      sections={SECTIONS}
+      active={section}
+      onSectionChange={(k) => setSection(k)}
+      search={search}
+      onSearchChange={setSearch}
+      onSignOut={() =>
+        logout.mutate(undefined, { onSuccess: () => navigate("/") })
+      }
+    >
+      <AdminContent
+        section={section}
+        search={search}
+        currentAdminId={me.data.id}
+        users={overview.data}
+        usersLoading={overview.isLoading}
+        emergencies={emergencies.data?.emergencies ?? []}
+      />
+    </DashShell>
+  );
+}
+
+function AdminContent({
+  section,
+  search,
+  currentAdminId,
+  users,
+  usersLoading,
+  emergencies,
+}: {
+  section: SectionKey;
+  search: string;
+  currentAdminId: number;
+  users: AdminUsersOverview | undefined;
+  usersLoading: boolean;
+  emergencies: Emergency[];
+}) {
+  const stats = useMemo(() => {
+    if (!users) return { verified: 0, activeVols: 0, live: 0, coverage: 0 };
+    const verified = users.vulnerables.filter((v) => v.verified).length;
+    const activeVols = users.volunteers.filter((v) => !v.disabled).length;
+    const live = emergencies.filter((e) => e.status === "active").length;
+    const totalVols = users.volunteers.length;
+    const withGps = users.volunteers.filter((v) => v.gpsConsent).length;
+    const coverage = totalVols === 0 ? 0 : Math.round((withGps / totalVols) * 100);
+    return { verified, activeVols, live, coverage };
+  }, [users, emergencies]);
+
+  if (usersLoading || !users) {
+    return <p className="text-sm text-stone-500">Loading…</p>;
+  }
+
+  if (section === "overview") {
+    return (
+      <OverviewSection
+        stats={stats}
+        users={users}
+        emergencies={emergencies}
+        search={search}
+      />
+    );
+  }
+  if (section === "verifications") {
+    return <VerificationsSection users={users} search={search} canEdit />;
+  }
+  if (section === "volunteers") {
+    return (
+      <VolunteersSection
+        users={users}
+        emergencies={emergencies}
+        search={search}
+        scope="admin"
+        canManage
+      />
+    );
+  }
+  if (section === "vulnerable") {
+    return (
+      <VulnerableSection
+        users={users}
+        emergencies={emergencies}
+        search={search}
+        scope="admin"
+        canManage
+      />
+    );
+  }
+  if (section === "emergencies") {
+    return (
+      <EmergenciesSection emergencies={emergencies} canDeactivate />
+    );
+  }
+  return <StaffSection users={users} currentAdminId={currentAdminId} />;
+}
+
+/* ───────────── Overview ───────────── */
+
+function OverviewSection({
+  stats,
+  users,
+  emergencies,
+  search,
+}: {
+  stats: { verified: number; activeVols: number; live: number; coverage: number };
+  users: AdminUsersOverview;
+  emergencies: Emergency[];
+  search: string;
+}) {
+  const liveByCreator = useMemo(() => {
+    const map = new Map<number, Emergency>();
+    emergencies
+      .filter((e) => e.status === "active" && e.creatorRole === "vulnerable")
+      .forEach((e) => map.set(e.creatorUserId, e));
+    return map;
+  }, [emergencies]);
+
+  const queue = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return users.vulnerables
+      .filter((v) =>
+        q
+          ? v.name.toLowerCase().includes(q) ||
+            v.address.toLowerCase().includes(q) ||
+            v.nokName.toLowerCase().includes(q)
+          : true,
+      )
+      .sort((a, b) => {
+        const aLive = liveByCreator.has(a.id) ? 1 : 0;
+        const bLive = liveByCreator.has(b.id) ? 1 : 0;
+        if (aLive !== bLive) return bLive - aLive;
+        const aPending = a.verified ? 1 : 0;
+        const bPending = b.verified ? 1 : 0;
+        if (aPending !== bPending) return aPending - bPending;
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      })
+      .slice(0, 8);
+  }, [users.vulnerables, search, liveByCreator]);
+
+  return (
+    <div className="space-y-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <StatCard value={String(stats.verified)} label="Vulnerable Verified" />
+        <StatCard value={String(stats.activeVols)} label="Volunteers Active" />
+        <StatCard value={String(stats.live)} label="Live Emergencies" tone="danger" />
+        <StatCard value={`${stats.coverage}%`} label="Coverage ≤ 2km" tone="success" />
+      </div>
+
+      <div>
+        <h2 className="text-lg font-bold text-stone-900 mb-4">Verification Queue</h2>
+        <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+          <div className="grid grid-cols-[2fr_1.5fr_1.5fr_0.8fr_1fr] bg-stone-100 px-6 py-3 text-xs font-semibold uppercase tracking-wider text-stone-500">
+            <div>Resident</div>
+            <div>Address</div>
+            <div>Next of Kin</div>
+            <div>Date</div>
+            <div>Status</div>
           </div>
+          {queue.length === 0 ? (
+            <p className="px-6 py-8 text-sm text-stone-500">
+              No residents match your search.
+            </p>
+          ) : (
+            <ul className="divide-y divide-stone-100">
+              {queue.map((v) => {
+                const live = liveByCreator.get(v.id);
+                return (
+                  <li
+                    key={v.id}
+                    className={`grid grid-cols-[2fr_1.5fr_1.5fr_0.8fr_1fr] items-center px-6 py-4 text-sm ${
+                      live ? "bg-[hsl(var(--primary))]/5" : ""
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      {live && (
+                        <span className="w-2 h-2 rounded-full bg-[hsl(var(--primary))] shrink-0" />
+                      )}
+                      <span className="font-semibold text-stone-900">{v.name}</span>
+                    </div>
+                    <div className="text-stone-700">{v.address}</div>
+                    <div className="text-stone-700">
+                      {v.nokName ? `${v.nokName} · ${v.nokRelation}` : "—"}
+                    </div>
+                    <div className="text-stone-600">
+                      {new Date(v.createdAt).toLocaleDateString(undefined, {
+                        day: "numeric",
+                        month: "short",
+                      })}
+                    </div>
+                    <div>
+                      {live ? (
+                        <StatusBadge
+                          kind={live.type === "major" ? "live-major" : "live-minor"}
+                        />
+                      ) : v.verified ? (
+                        <StatusBadge kind="verified" />
+                      ) : (
+                        <StatusBadge kind="pending" />
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
-      </header>
-
-      <main className="max-w-6xl mx-auto px-6 py-10 space-y-10">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-[hsl(var(--primary))] mb-2">
-            Admin · User management
-          </p>
-          <h1 className="font-serif text-4xl font-bold text-stone-900">Manage users</h1>
-          <p className="text-stone-600 mt-3">
-            Full oversight across every vault. Add Reviewers and Admins, disable accounts that
-            shouldn't sign in, or remove them permanently.
-          </p>
-        </div>
-
-        <CreateUserForm />
-        <UserVaults currentAdminId={me.data.id} />
-      </main>
+      </div>
     </div>
   );
 }
 
-/* ─────────── Create reviewer/admin form ─────────── */
+/* ───────────── Verifications ───────────── */
 
-function CreateUserForm() {
+function VerificationsSection({
+  users,
+  search,
+  canEdit,
+}: {
+  users: AdminUsersOverview;
+  search: string;
+  canEdit: boolean;
+}) {
+  const qc = useQueryClient();
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const verifyVul = useMutation({
+    mutationFn: (id: number) => verifyVulnerable(id, { credentials: "include" }),
+    onSuccess: () => {
+      setMsg("Vulnerable verified.");
+      qc.invalidateQueries({ queryKey: USERS_KEY });
+    },
+  });
+  const verifyVol = useMutation({
+    mutationFn: (id: number) => verifyVolunteer(id, { credentials: "include" }),
+    onSuccess: () => {
+      setMsg("Volunteer verified.");
+      qc.invalidateQueries({ queryKey: USERS_KEY });
+    },
+  });
+
+  const q = search.trim().toLowerCase();
+  const pendingVul = users.vulnerables
+    .filter((v) => !v.verified)
+    .filter((v) => (q ? v.name.toLowerCase().includes(q) : true));
+  const pendingVol = users.volunteers
+    .filter((v) => !v.verified)
+    .filter((v) => (q ? v.name.toLowerCase().includes(q) : true));
+
+  void canEdit;
+
+  return (
+    <div className="space-y-8">
+      {msg && (
+        <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+          {msg}
+        </p>
+      )}
+
+      <div>
+        <SectionHeading
+          title={`Vulnerable awaiting verification (${pendingVul.length})`}
+          subtitle="Confirm identity, residence, and next-of-kin before granting help-request access."
+        />
+        <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+          {pendingVul.length === 0 ? (
+            <p className="px-6 py-8 text-sm text-stone-500">All caught up.</p>
+          ) : (
+            <ul className="divide-y divide-stone-100">
+              {pendingVul.map((v) => (
+                <li
+                  key={v.id}
+                  className="px-6 py-4 flex flex-wrap items-start justify-between gap-4"
+                >
+                  <div className="text-sm flex-1 min-w-[260px]">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-stone-900">{v.name}</span>
+                      <span className="text-stone-500 font-mono text-xs">{v.email}</span>
+                      {!v.emailVerified && <StatusBadge kind="email-unverified" />}
+                      {v.disabled && <StatusBadge kind="disabled" />}
+                    </div>
+                    <p className="text-xs text-stone-600 mt-1">{v.address}</p>
+                    <p className="text-xs text-stone-600">
+                      NOK: {v.nokName} ({v.nokRelation}) · {v.nokContact}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => verifyVul.mutate(v.id)}
+                    disabled={verifyVul.isPending}
+                    className="inline-flex items-center gap-1.5 text-sm font-semibold bg-[hsl(var(--primary))] text-white rounded-lg px-4 py-2 hover:opacity-90 disabled:opacity-60"
+                  >
+                    <ShieldCheck className="w-4 h-4" />
+                    Verify
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+
+      <div>
+        <SectionHeading
+          title={`Volunteers awaiting verification (${pendingVol.length})`}
+          subtitle="Vouch for trained neighbours so they can be paged for emergencies."
+        />
+        <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+          {pendingVol.length === 0 ? (
+            <p className="px-6 py-8 text-sm text-stone-500">All caught up.</p>
+          ) : (
+            <ul className="divide-y divide-stone-100">
+              {pendingVol.map((v) => (
+                <li
+                  key={v.id}
+                  className="px-6 py-4 flex flex-wrap items-start justify-between gap-4"
+                >
+                  <div className="text-sm flex-1 min-w-[260px]">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-stone-900">{v.name}</span>
+                      <span className="text-stone-500 font-mono text-xs">{v.email}</span>
+                      {!v.emailVerified && <StatusBadge kind="email-unverified" />}
+                      {v.disabled && <StatusBadge kind="disabled" />}
+                    </div>
+                    {v.skills && (
+                      <p className="text-xs text-stone-600 mt-1">Skills: {v.skills}</p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => verifyVol.mutate(v.id)}
+                    disabled={verifyVol.isPending}
+                    className="inline-flex items-center gap-1.5 text-sm font-semibold bg-[hsl(var(--primary))] text-white rounded-lg px-4 py-2 hover:opacity-90 disabled:opacity-60"
+                  >
+                    <ShieldCheck className="w-4 h-4" />
+                    Verify
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ───────────── Volunteers ───────────── */
+
+function VolunteersSection({
+  users,
+  emergencies,
+  search,
+  scope,
+  canManage,
+}: {
+  users: AdminUsersOverview;
+  emergencies: Emergency[];
+  search: string;
+  scope: "admin" | "reviewer";
+  canManage: boolean;
+}) {
+  const q = search.trim().toLowerCase();
+  const rows = users.volunteers.filter((v) =>
+    q
+      ? v.name.toLowerCase().includes(q) || v.email.toLowerCase().includes(q)
+      : true,
+  );
+
+  void emergencies;
+
+  return (
+    <div>
+      <SectionHeading
+        title={`Volunteers (${rows.length})`}
+        subtitle="Trained neighbours paged for nearby emergencies."
+      />
+      <UserListCard
+        rows={rows.map((v) => ({
+          id: v.id,
+          name: v.name,
+          email: v.email,
+          createdAt: v.createdAt,
+          disabled: v.disabled,
+          verified: v.verified,
+          emailVerified: v.emailVerified,
+          extra: v.skills ? `Skills: ${v.skills}` : "No skills listed",
+          editable: {
+            id: v.id,
+            name: v.name,
+            email: v.email,
+            skills: v.skills ?? "",
+          },
+        }))}
+        role="volunteer"
+        scope={scope}
+        canDisable={canManage}
+        canDelete={canManage}
+        canVerify
+      />
+    </div>
+  );
+}
+
+/* ───────────── Vulnerable ───────────── */
+
+function VulnerableSection({
+  users,
+  emergencies,
+  search,
+  scope,
+  canManage,
+}: {
+  users: AdminUsersOverview;
+  emergencies: Emergency[];
+  search: string;
+  scope: "admin" | "reviewer";
+  canManage: boolean;
+}) {
+  const q = search.trim().toLowerCase();
+  const rows = users.vulnerables.filter((v) =>
+    q
+      ? v.name.toLowerCase().includes(q) ||
+        v.email.toLowerCase().includes(q) ||
+        v.address.toLowerCase().includes(q)
+      : true,
+  );
+
+  void emergencies;
+
+  return (
+    <div>
+      <SectionHeading
+        title={`Vulnerable residents (${rows.length})`}
+        subtitle="People we look after. SOS calls page nearby volunteers."
+      />
+      <UserListCard
+        rows={rows.map((v) => ({
+          id: v.id,
+          name: v.name,
+          email: v.email,
+          createdAt: v.createdAt,
+          disabled: v.disabled,
+          verified: v.verified,
+          emailVerified: v.emailVerified,
+          extra: `${v.address} · NOK ${v.nokName} (${v.nokRelation})`,
+          editable: {
+            id: v.id,
+            name: v.name,
+            email: v.email,
+            address: v.address,
+            nokName: v.nokName,
+            nokRelation: v.nokRelation,
+            nokContact: v.nokContact,
+          },
+        }))}
+        role="vulnerable"
+        scope={scope}
+        canDisable={canManage}
+        canDelete={canManage}
+        canVerify
+      />
+    </div>
+  );
+}
+
+/* ───────────── Live emergencies ───────────── */
+
+function EmergenciesSection({
+  emergencies,
+  canDeactivate,
+}: {
+  emergencies: Emergency[];
+  canDeactivate: boolean;
+}) {
+  const qc = useQueryClient();
+  const deactivate = useMutation({
+    mutationFn: (id: number) => deactivateEmergency(id, { credentials: "include" }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: EMERG_KEY }),
+  });
+
+  const sorted = [...emergencies].sort((a, b) => {
+    const order: Record<Emergency["status"], number> = {
+      active: 0,
+      deactivated: 1,
+      resolved: 2,
+    };
+    return order[a.status] - order[b.status];
+  });
+
+  return (
+    <div>
+      <SectionHeading
+        title={`Emergencies (${emergencies.length})`}
+        subtitle="Real-time view of every SOS call across the network."
+      />
+      <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+        {sorted.length === 0 ? (
+          <p className="px-6 py-8 text-sm text-stone-500">No emergencies on record.</p>
+        ) : (
+          <ul className="divide-y divide-stone-100">
+            {sorted.map((e) => (
+              <li
+                key={e.id}
+                className="px-6 py-4 flex flex-wrap items-start justify-between gap-4"
+              >
+                <div className="text-sm flex-1 min-w-[260px]">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {e.status === "active" ? (
+                      <StatusBadge
+                        kind={e.type === "major" ? "live-major" : "live-minor"}
+                      />
+                    ) : (
+                      <StatusBadge kind={e.status as "deactivated" | "resolved"} />
+                    )}
+                    <span className="font-semibold text-stone-900">{e.creatorName}</span>
+                    <span className="text-xs text-stone-500">
+                      ({e.creatorRole})
+                    </span>
+                  </div>
+                  <p className="text-xs text-stone-600 mt-1">
+                    {e.address || "Unknown address"}
+                    {e.lat && e.lng && (
+                      <span className="font-mono ml-2">
+                        ({e.lat.toFixed(4)}, {e.lng.toFixed(4)})
+                      </span>
+                    )}
+                  </p>
+                  {e.description && (
+                    <p className="text-xs text-stone-700 mt-1">{e.description}</p>
+                  )}
+                  {e.responseStats && (
+                    <p className="text-xs text-stone-500 mt-1">
+                      {e.responseStats.accepted} accepted · {e.responseStats.arrived} arrived ·{" "}
+                      {e.responseStats.declined} declined
+                    </p>
+                  )}
+                </div>
+                {canDeactivate && e.status === "active" && (
+                  <button
+                    onClick={() => deactivate.mutate(e.id)}
+                    disabled={deactivate.isPending}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold border border-red-300 text-red-700 rounded-md px-3 py-1.5 hover:bg-red-50 disabled:opacity-60"
+                  >
+                    <PowerOff className="w-3.5 h-3.5" />
+                    Deactivate
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ───────────── Staff (admin-only) ───────────── */
+
+function StaffSection({
+  users,
+  currentAdminId,
+}: {
+  users: AdminUsersOverview;
+  currentAdminId: number;
+}) {
+  const [showCreate, setShowCreate] = useState(false);
+
+  return (
+    <div className="space-y-8">
+      <SectionHeading
+        title="Staff accounts"
+        subtitle="Admins and Reviewers. These roles aren't self-registerable."
+        action={
+          <button
+            onClick={() => setShowCreate((v) => !v)}
+            className="inline-flex items-center gap-1.5 text-sm font-semibold bg-[hsl(var(--primary))] text-white rounded-lg px-3 py-2 hover:opacity-90"
+          >
+            <Plus className="w-4 h-4" />
+            {showCreate ? "Close" : "Add staff"}
+          </button>
+        }
+      />
+
+      {showCreate && <CreateStaffForm onCreated={() => setShowCreate(false)} />}
+
+      <UserListCard
+        rows={users.admins.map((a) => ({
+          id: a.id,
+          name: a.name,
+          email: a.email,
+          createdAt: a.createdAt,
+          disabled: a.disabled,
+          isSelf: a.id === currentAdminId,
+          extra: "Admin · full oversight",
+          editable: { id: a.id, name: a.name, email: a.email },
+        }))}
+        role="admin"
+        scope="admin"
+        canDisable
+        canDelete
+      />
+      <UserListCard
+        rows={users.reviewers.map((r) => ({
+          id: r.id,
+          name: r.name,
+          email: r.email,
+          createdAt: r.createdAt,
+          disabled: r.disabled,
+          extra: "Reviewer · verifies residents, activates Major emergencies",
+          editable: { id: r.id, name: r.name, email: r.email },
+        }))}
+        role="reviewer"
+        scope="admin"
+        canDisable
+        canDelete
+      />
+    </div>
+  );
+}
+
+function CreateStaffForm({ onCreated }: { onCreated: () => void }) {
   const qc = useQueryClient();
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
@@ -105,7 +730,19 @@ function CreateUserForm() {
   const create = useMutation({
     mutationFn: (body: AdminCreateUserRequest) =>
       adminCreateUser(body, { credentials: "include" }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: USERS_KEY }),
+    onSuccess: (u) => {
+      setCreated(u);
+      setEmail("");
+      setName("");
+      setPassword("");
+      qc.invalidateQueries({ queryKey: USERS_KEY });
+      setTimeout(onCreated, 1500);
+    },
+    onError: (err) =>
+      setError(
+        (err as { data?: { message?: string } })?.data?.message ??
+          "Could not create user.",
+      ),
   });
 
   function onSubmit(e: FormEvent) {
@@ -116,155 +753,129 @@ function CreateUserForm() {
       setError("Password must be at least 8 characters.");
       return;
     }
-    create.mutate(
-      { email, password, name, role },
-      {
-        onSuccess: (u) => {
-          setCreated(u);
-          setEmail("");
-          setName("");
-          setPassword("");
-        },
-        onError: (err) =>
-          setError(
-            (err as { data?: { message?: string } })?.data?.message ??
-              "Could not create user",
-          ),
-      },
-    );
+    create.mutate({ email, password, name, role });
   }
 
   return (
-    <section className="bg-white border border-stone-200 rounded-2xl p-8 shadow-sm">
-      <div className="flex items-start gap-3 mb-5">
-        <div className="w-10 h-10 rounded-lg bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))] flex items-center justify-center shrink-0">
-          <ShieldPlus className="w-5 h-5" />
-        </div>
-        <div>
-          <h2 className="font-serif text-2xl font-bold text-stone-900">
-            Create Reviewer or Admin
-          </h2>
-          <p className="text-sm text-stone-600 mt-1">
-            These roles aren't self-registerable. New accounts can sign in immediately.
-          </p>
-        </div>
+    <form
+      onSubmit={onSubmit}
+      className="bg-white border border-stone-200 rounded-2xl p-6 shadow-sm grid sm:grid-cols-2 gap-4"
+    >
+      <div className="sm:col-span-2 grid grid-cols-2 gap-3">
+        {(["reviewer", "admin"] as const).map((r) => (
+          <button
+            key={r}
+            type="button"
+            onClick={() => setRole(r)}
+            className={`text-left p-3 rounded-lg border-2 capitalize ${
+              role === r
+                ? "border-[hsl(var(--primary))] bg-[hsl(var(--primary))]/5"
+                : "border-stone-200 hover:border-stone-300"
+            }`}
+          >
+            <div className="font-semibold text-stone-900">{r}</div>
+            <div className="text-xs text-stone-600 mt-0.5">
+              {r === "reviewer"
+                ? "Verifies residents, activates Major emergencies."
+                : "Full oversight — manage staff & emergencies."}
+            </div>
+          </button>
+        ))}
       </div>
-
-      <form onSubmit={onSubmit} className="grid sm:grid-cols-2 gap-4">
-        <div className="sm:col-span-2 grid grid-cols-2 gap-3">
-          {(["reviewer", "admin"] as const).map((r) => (
-            <button
-              key={r}
-              type="button"
-              onClick={() => setRole(r)}
-              className={`text-left p-3 rounded-lg border-2 capitalize ${
-                role === r
-                  ? "border-[hsl(var(--primary))] bg-[hsl(var(--primary))]/5"
-                  : "border-stone-200 hover:border-stone-300"
-              }`}
-            >
-              <div className="font-semibold text-stone-900">{r}</div>
-              <div className="text-xs text-stone-600 mt-0.5">
-                {r === "reviewer"
-                  ? "Verifies vulnerable profiles, activates Major emergencies."
-                  : "Full oversight — can deactivate emergencies and manage users."}
-              </div>
-            </button>
-          ))}
+      <input
+        type="text"
+        required
+        placeholder="Full name"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        className="rounded-lg border border-stone-200 px-3 py-2 focus:outline-none focus:border-[hsl(var(--primary))]"
+      />
+      <input
+        type="email"
+        required
+        placeholder="Email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        className="rounded-lg border border-stone-200 px-3 py-2 focus:outline-none focus:border-[hsl(var(--primary))]"
+      />
+      <input
+        type="password"
+        autoComplete="new-password"
+        required
+        minLength={8}
+        placeholder="Initial password (8+ chars)"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        className="sm:col-span-2 rounded-lg border border-stone-200 px-3 py-2 font-mono focus:outline-none focus:border-[hsl(var(--primary))]"
+      />
+      {error && (
+        <p className="sm:col-span-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+          {error}
+        </p>
+      )}
+      {created && (
+        <div className="sm:col-span-2 text-sm text-green-800 bg-green-50 border border-green-200 rounded-lg px-3 py-2 flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4" />
+          Created <strong className="ml-1">{created.role}</strong>{" "}
+          <span className="font-mono ml-1">{created.email}</span>
         </div>
-        <input
-          type="text"
-          required
-          placeholder="Full name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="rounded-lg border border-stone-200 px-3 py-2 focus:outline-none focus:border-[hsl(var(--primary))]"
-        />
-        <input
-          type="email"
-          required
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="rounded-lg border border-stone-200 px-3 py-2 focus:outline-none focus:border-[hsl(var(--primary))]"
-        />
-        <input
-          type="password"
-          autoComplete="new-password"
-          required
-          minLength={8}
-          placeholder="Initial password (8+ chars)"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="sm:col-span-2 rounded-lg border border-stone-200 px-3 py-2 font-mono focus:outline-none focus:border-[hsl(var(--primary))]"
-        />
-        {error && (
-          <p className="sm:col-span-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-            {error}
-          </p>
-        )}
-        {created && (
-          <div className="sm:col-span-2 text-sm text-green-800 bg-green-50 border border-green-200 rounded-lg px-3 py-2 flex items-start gap-2">
-            <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
-            <span>
-              Created <strong>{created.role}</strong>{" "}
-              <span className="font-mono">{created.email}</span> (id {created.id}).
-            </span>
-          </div>
-        )}
-        <button
-          type="submit"
-          disabled={create.isPending}
-          className="sm:col-span-2 bg-[hsl(var(--primary))] text-white rounded-lg py-2.5 font-medium hover:opacity-90 disabled:opacity-60"
-        >
-          {create.isPending ? "Creating…" : "Create account"}
-        </button>
-      </form>
-    </section>
+      )}
+      <button
+        type="submit"
+        disabled={create.isPending}
+        className="sm:col-span-2 bg-[hsl(var(--primary))] text-white rounded-lg py-2.5 font-medium hover:opacity-90 disabled:opacity-60"
+      >
+        {create.isPending ? "Creating…" : "Create account"}
+      </button>
+    </form>
   );
 }
 
-/* ─────────── 4-vault user tables ─────────── */
+/* ───────────── Shared user list card ───────────── */
 
-type ManagedRole = "admin" | "reviewer" | "volunteer" | "vulnerable";
-const TABS: { role: ManagedRole; label: string }[] = [
-  { role: "admin", label: "Admins" },
-  { role: "reviewer", label: "Reviewers" },
-  { role: "volunteer", label: "Volunteers" },
-  { role: "vulnerable", label: "Vulnerable" },
-];
+interface ListRow {
+  id: number;
+  name: string;
+  email: string;
+  createdAt: string;
+  disabled: boolean;
+  verified?: boolean;
+  emailVerified?: boolean;
+  isSelf?: boolean;
+  extra: string;
+  editable: EditableRow;
+}
 
-type EditTarget =
-  | { role: "admin"; row: Overview["admins"][number] }
-  | { role: "reviewer"; row: Overview["reviewers"][number] }
-  | { role: "volunteer"; row: Overview["volunteers"][number] }
-  | { role: "vulnerable"; row: Overview["vulnerables"][number] };
-
-function UserVaults({ currentAdminId }: { currentAdminId: number }) {
+function UserListCard({
+  rows,
+  role,
+  scope,
+  canDisable,
+  canDelete,
+  canVerify,
+}: {
+  rows: ListRow[];
+  role: EditableUserRole;
+  scope: "admin" | "reviewer";
+  canDisable?: boolean;
+  canDelete?: boolean;
+  canVerify?: boolean;
+}) {
   const qc = useQueryClient();
-  const [active, setActive] = useState<ManagedUserRole>("admin");
-  const [confirmDelete, setConfirmDelete] = useState<{ role: ManagedUserRole; id: number; email: string } | null>(null);
-  const [editing, setEditing] = useState<EditTarget | null>(null);
-  const [actionMsg, setActionMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  const [editing, setEditing] = useState<ListRow | null>(null);
+  const [confirm, setConfirm] = useState<ListRow | null>(null);
+  const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  const invalidateKey = scope === "admin" ? USERS_KEY : (["/api/reviewer/users-overview"] as const);
 
-  const list = useQuery({
-    queryKey: USERS_KEY,
-    queryFn: () => adminListAllUsers({ credentials: "include" }),
-  });
-
-  function refresh() {
-    qc.invalidateQueries({ queryKey: USERS_KEY });
-  }
-
-  const disable = useMutation({
-    mutationFn: ({ role, id }: { role: ManagedUserRole; id: number }) =>
-      adminDisableUser(role, id, { credentials: "include" }),
+  const disableM = useMutation({
+    mutationFn: (id: number) =>
+      adminDisableUser(role as ManagedUserRole, id, { credentials: "include" }),
     onSuccess: () => {
-      setActionMsg({ kind: "ok", text: "Account disabled." });
-      refresh();
+      setMsg({ kind: "ok", text: "Account disabled." });
+      qc.invalidateQueries({ queryKey: invalidateKey });
     },
     onError: (err) =>
-      setActionMsg({
+      setMsg({
         kind: "err",
         text:
           (err as { data?: { message?: string } })?.data?.message ??
@@ -272,541 +883,181 @@ function UserVaults({ currentAdminId }: { currentAdminId: number }) {
       }),
   });
   const enableM = useMutation({
-    mutationFn: ({ role, id }: { role: ManagedUserRole; id: number }) =>
-      adminEnableUser(role, id, { credentials: "include" }),
+    mutationFn: (id: number) =>
+      adminEnableUser(role as ManagedUserRole, id, { credentials: "include" }),
     onSuccess: () => {
-      setActionMsg({ kind: "ok", text: "Account re-enabled." });
-      refresh();
+      setMsg({ kind: "ok", text: "Account enabled." });
+      qc.invalidateQueries({ queryKey: invalidateKey });
     },
   });
-  const del = useMutation({
-    mutationFn: ({ role, id }: { role: ManagedUserRole; id: number }) =>
-      adminDeleteUser(role, id, { credentials: "include" }),
+  const deleteM = useMutation({
+    mutationFn: (id: number) =>
+      adminDeleteUser(role as ManagedUserRole, id, { credentials: "include" }),
     onSuccess: () => {
-      setActionMsg({ kind: "ok", text: "Account removed." });
-      setConfirmDelete(null);
-      refresh();
+      setMsg({ kind: "ok", text: "Account removed." });
+      setConfirm(null);
+      qc.invalidateQueries({ queryKey: invalidateKey });
     },
     onError: (err) =>
-      setActionMsg({
+      setMsg({
         kind: "err",
         text:
           (err as { data?: { message?: string } })?.data?.message ??
           "Could not delete.",
       }),
   });
+  const verifyM = useMutation({
+    mutationFn: (id: number) => {
+      const fn = role === "volunteer" ? verifyVolunteer : verifyVulnerable;
+      return fn(id, { credentials: "include" });
+    },
+    onSuccess: () => {
+      setMsg({ kind: "ok", text: "Account verified." });
+      qc.invalidateQueries({ queryKey: invalidateKey });
+    },
+  });
 
-  const data = list.data;
-  const counts = data
-    ? {
-        admin: data.admins.length,
-        reviewer: data.reviewers.length,
-        volunteer: data.volunteers.length,
-        vulnerable: data.vulnerables.length,
-      }
-    : { admin: 0, reviewer: 0, volunteer: 0, vulnerable: 0 };
+  const showVerify = canVerify && (role === "volunteer" || role === "vulnerable");
 
   return (
-    <section className="bg-white border border-stone-200 rounded-2xl shadow-sm overflow-hidden">
-      <div className="border-b border-stone-200 px-6 py-4">
-        <h2 className="font-serif text-2xl font-bold text-stone-900">All accounts</h2>
-        <p className="text-sm text-stone-600 mt-1">
-          Disabling blocks sign-in immediately. Deleting is permanent.
-        </p>
-      </div>
-
-      <div className="flex border-b border-stone-200 bg-stone-50">
-        {TABS.map((t) => (
-          <button
-            key={t.role}
-            onClick={() => {
-              setActive(t.role);
-              setActionMsg(null);
-            }}
-            className={`px-5 py-3 text-sm font-medium border-b-2 transition ${
-              active === t.role
-                ? "border-[hsl(var(--primary))] text-[hsl(var(--primary))] bg-white"
-                : "border-transparent text-stone-600 hover:text-stone-900"
-            }`}
-          >
-            {t.label}{" "}
-            <span className="ml-1 text-xs text-stone-500">({counts[t.role]})</span>
-          </button>
-        ))}
-      </div>
-
-      {actionMsg && (
+    <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+      {msg && (
         <div
-          className={`mx-6 mt-4 text-sm rounded-lg px-3 py-2 ${
-            actionMsg.kind === "ok"
-              ? "bg-green-50 text-green-800 border border-green-200"
-              : "bg-red-50 text-red-700 border border-red-200"
+          className={`px-6 py-3 text-sm border-b ${
+            msg.kind === "ok"
+              ? "bg-green-50 text-green-800 border-green-100"
+              : "bg-red-50 text-red-700 border-red-100"
           }`}
         >
-          {actionMsg.text}
+          {msg.text}
         </div>
       )}
-
-      <div className="p-6">
-        {list.isLoading ? (
-          <p className="text-sm text-stone-500">Loading…</p>
-        ) : !data ? (
-          <p className="text-sm text-red-600">Could not load users.</p>
-        ) : (
-          <UserTable
-            role={active}
-            data={data}
-            currentAdminId={currentAdminId}
-            onDisable={(id) => disable.mutate({ role: active, id })}
-            onEnable={(id) => enableM.mutate({ role: active, id })}
-            onDelete={(id, email) => setConfirmDelete({ role: active, id, email })}
-            onEdit={(target) => setEditing(target)}
-            busy={disable.isPending || enableM.isPending}
-          />
-        )}
-      </div>
+      {rows.length === 0 ? (
+        <p className="px-6 py-8 text-sm text-stone-500">No accounts to show.</p>
+      ) : (
+        <ul className="divide-y divide-stone-100">
+          {rows.map((r) => (
+            <li
+              key={r.id}
+              className="px-6 py-4 flex flex-wrap items-start justify-between gap-4"
+            >
+              <div className="text-sm flex-1 min-w-[260px]">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-semibold text-stone-900">{r.name}</span>
+                  <span className="text-stone-500 font-mono text-xs">{r.email}</span>
+                  {r.disabled && <StatusBadge kind="disabled" />}
+                  {r.verified === true && <StatusBadge kind="verified" />}
+                  {r.verified === false && <StatusBadge kind="pending" />}
+                  {r.emailVerified === false && <StatusBadge kind="email-unverified" />}
+                  {r.isSelf && (
+                    <span className="text-xs font-semibold uppercase px-2 py-0.5 rounded bg-blue-100 text-blue-700">
+                      You
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-stone-500 mt-0.5">
+                  ID #{r.id} · Joined {new Date(r.createdAt).toLocaleDateString()}
+                </p>
+                <p className="text-xs text-stone-600 mt-1">{r.extra}</p>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {showVerify && r.verified === false && (
+                  <button
+                    onClick={() => verifyM.mutate(r.id)}
+                    disabled={verifyM.isPending}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold border border-green-300 text-green-700 rounded-md px-3 py-1.5 hover:bg-green-50 disabled:opacity-40"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    Verify
+                  </button>
+                )}
+                <button
+                  onClick={() => setEditing(r)}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold border border-stone-300 text-stone-700 rounded-md px-3 py-1.5 hover:bg-stone-50"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  Edit
+                </button>
+                {canDisable &&
+                  (r.disabled ? (
+                    <button
+                      onClick={() => enableM.mutate(r.id)}
+                      disabled={enableM.isPending}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold border border-green-300 text-green-700 rounded-md px-3 py-1.5 hover:bg-green-50 disabled:opacity-40"
+                    >
+                      <Power className="w-3.5 h-3.5" />
+                      Enable
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => disableM.mutate(r.id)}
+                      disabled={disableM.isPending || r.isSelf}
+                      title={r.isSelf ? "You cannot disable yourself" : ""}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold border border-stone-300 text-stone-700 rounded-md px-3 py-1.5 hover:bg-stone-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <UserX className="w-3.5 h-3.5" />
+                      Disable
+                    </button>
+                  ))}
+                {canDelete && (
+                  <button
+                    onClick={() => setConfirm(r)}
+                    disabled={r.isSelf}
+                    title={r.isSelf ? "You cannot delete yourself" : ""}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold border border-red-300 text-red-700 rounded-md px-3 py-1.5 hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Delete
+                  </button>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
 
       {editing && (
-        <EditUserModal
-          target={editing}
+        <UserEditModal
+          scope={scope}
+          role={role}
+          row={editing.editable}
+          invalidateKey={invalidateKey}
           onClose={() => setEditing(null)}
           onSaved={() => {
             setEditing(null);
-            setActionMsg({ kind: "ok", text: "Account updated." });
-            refresh();
+            setMsg({ kind: "ok", text: "Account updated." });
           }}
         />
       )}
 
-      {confirmDelete && (
+      {confirm && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
             <h3 className="font-serif text-xl font-bold text-stone-900 mb-2">
-              Delete {confirmDelete.role} account?
+              Delete {role} account?
             </h3>
             <p className="text-sm text-stone-700 mb-4">
-              This permanently removes <span className="font-mono">{confirmDelete.email}</span>{" "}
-              from the {confirmDelete.role}_users vault. This cannot be undone.
+              This permanently removes{" "}
+              <span className="font-mono">{confirm.email}</span>. This cannot be undone.
             </p>
             <div className="flex justify-end gap-2">
               <button
-                onClick={() => setConfirmDelete(null)}
+                onClick={() => setConfirm(null)}
                 className="text-sm px-4 py-2 rounded-lg border border-stone-300 hover:bg-stone-50"
               >
                 Cancel
               </button>
               <button
-                onClick={() =>
-                  del.mutate({ role: confirmDelete.role, id: confirmDelete.id })
-                }
-                disabled={del.isPending}
+                onClick={() => deleteM.mutate(confirm.id)}
+                disabled={deleteM.isPending}
                 className="text-sm px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-60"
               >
-                {del.isPending ? "Deleting…" : "Yes, delete"}
+                {deleteM.isPending ? "Deleting…" : "Yes, delete"}
               </button>
             </div>
           </div>
         </div>
       )}
-    </section>
-  );
-}
-
-type Overview = NonNullable<ReturnType<typeof useQuery<Awaited<ReturnType<typeof adminListAllUsers>>>>["data"]>;
-
-function UserTable({
-  role,
-  data,
-  currentAdminId,
-  onDisable,
-  onEnable,
-  onDelete,
-  onEdit,
-  busy,
-}: {
-  role: ManagedUserRole;
-  data: Overview;
-  currentAdminId: number;
-  onDisable: (id: number) => void;
-  onEnable: (id: number) => void;
-  onDelete: (id: number, email: string) => void;
-  onEdit: (target: EditTarget) => void;
-  busy: boolean;
-}) {
-  const rows: Array<{
-    id: number;
-    name: string;
-    email: string;
-    disabled: boolean;
-    createdAt: string;
-    extra?: React.ReactNode;
-  }> = [];
-
-  if (role === "admin") {
-    data.admins.forEach((a) =>
-      rows.push({
-        id: a.id,
-        name: a.name,
-        email: a.email,
-        disabled: a.disabled,
-        createdAt: a.createdAt,
-      }),
-    );
-  } else if (role === "reviewer") {
-    data.reviewers.forEach((r) =>
-      rows.push({
-        id: r.id,
-        name: r.name,
-        email: r.email,
-        disabled: r.disabled,
-        createdAt: r.createdAt,
-      }),
-    );
-  } else if (role === "volunteer") {
-    data.volunteers.forEach((v) =>
-      rows.push({
-        id: v.id,
-        name: v.name,
-        email: v.email,
-        disabled: v.disabled,
-        createdAt: v.createdAt,
-        extra: (
-          <div className="text-xs text-stone-600 space-y-0.5">
-            {v.skills && <div>Skills: {v.skills}</div>}
-            <div>
-              GPS consent: {v.gpsConsent ? "yes" : "no"} · Email{" "}
-              {v.emailVerified ? "verified" : "unverified"}
-            </div>
-            {v.lastSeenAt && (
-              <div>Last seen: {new Date(v.lastSeenAt).toLocaleString()}</div>
-            )}
-          </div>
-        ),
-      }),
-    );
-  } else {
-    data.vulnerables.forEach((v) =>
-      rows.push({
-        id: v.id,
-        name: v.name,
-        email: v.email,
-        disabled: v.disabled,
-        createdAt: v.createdAt,
-        extra: (
-          <div className="text-xs text-stone-600 space-y-0.5">
-            <div>{v.address}</div>
-            <div>
-              NOK: {v.nokName} ({v.nokRelation}) · {v.nokContact}
-            </div>
-            <div>
-              {v.verified ? "Verified" : "Awaiting verification"} · Email{" "}
-              {v.emailVerified ? "verified" : "unverified"}
-            </div>
-          </div>
-        ),
-      }),
-    );
-  }
-
-  if (rows.length === 0) {
-    return <p className="text-sm text-stone-500">No {role} accounts yet.</p>;
-  }
-
-  return (
-    <ul className="divide-y divide-stone-200">
-      {rows.map((r) => {
-        const isSelf = role === "admin" && r.id === currentAdminId;
-        return (
-          <li
-            key={r.id}
-            className="py-4 flex flex-wrap items-start justify-between gap-4"
-          >
-            <div className="text-sm flex-1 min-w-[240px]">
-              <div className="flex items-center gap-2 flex-wrap">
-                <p className="font-semibold text-stone-900">{r.name}</p>
-                <span className="text-stone-500 font-mono text-xs">{r.email}</span>
-                {r.disabled && (
-                  <span className="text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-stone-200 text-stone-700">
-                    Disabled
-                  </span>
-                )}
-                {isSelf && (
-                  <span className="text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-blue-100 text-blue-700">
-                    You
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-stone-500 mt-0.5">
-                ID #{r.id} · Joined {new Date(r.createdAt).toLocaleDateString()}
-              </p>
-              {r.extra && <div className="mt-1.5">{r.extra}</div>}
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => {
-                  if (role === "admin") {
-                    const row = data.admins.find((x) => x.id === r.id);
-                    if (row) onEdit({ role: "admin", row });
-                  } else if (role === "reviewer") {
-                    const row = data.reviewers.find((x) => x.id === r.id);
-                    if (row) onEdit({ role: "reviewer", row });
-                  } else if (role === "volunteer") {
-                    const row = data.volunteers.find((x) => x.id === r.id);
-                    if (row) onEdit({ role: "volunteer", row });
-                  } else {
-                    const row = data.vulnerables.find((x) => x.id === r.id);
-                    if (row) onEdit({ role: "vulnerable", row });
-                  }
-                }}
-                className="inline-flex items-center gap-1.5 text-xs font-semibold border border-stone-300 text-stone-700 rounded-md px-3 py-1.5 hover:bg-stone-50"
-              >
-                <Pencil className="w-3.5 h-3.5" />
-                Edit
-              </button>
-              {r.disabled ? (
-                <button
-                  onClick={() => onEnable(r.id)}
-                  disabled={busy}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold border border-green-300 text-green-700 rounded-md px-3 py-1.5 hover:bg-green-50 disabled:opacity-60"
-                >
-                  <Power className="w-3.5 h-3.5" />
-                  Enable
-                </button>
-              ) : (
-                <button
-                  onClick={() => onDisable(r.id)}
-                  disabled={busy || isSelf}
-                  title={isSelf ? "You cannot disable your own account" : ""}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold border border-stone-300 text-stone-700 rounded-md px-3 py-1.5 hover:bg-stone-50 disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <UserX className="w-3.5 h-3.5" />
-                  Disable
-                </button>
-              )}
-              <button
-                onClick={() => onDelete(r.id, r.email)}
-                disabled={isSelf}
-                title={isSelf ? "You cannot delete your own account" : ""}
-                className="inline-flex items-center gap-1.5 text-xs font-semibold border border-red-300 text-red-700 rounded-md px-3 py-1.5 hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                Delete
-              </button>
-            </div>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
-/* ─────────── Edit user modal ─────────── */
-
-function EditUserModal({
-  target,
-  onClose,
-  onSaved,
-}: {
-  target: EditTarget;
-  onClose: () => void;
-  onSaved: () => void;
-}) {
-  const qc = useQueryClient();
-  const r = target.row;
-  const [name, setName] = useState(r.name);
-  const [email, setEmail] = useState(r.email);
-  const [password, setPassword] = useState("");
-  const [skills, setSkills] = useState(
-    target.role === "volunteer" ? target.row.skills ?? "" : "",
-  );
-  const [address, setAddress] = useState(
-    target.role === "vulnerable" ? target.row.address : "",
-  );
-  const [nokName, setNokName] = useState(
-    target.role === "vulnerable" ? target.row.nokName : "",
-  );
-  const [nokRelation, setNokRelation] = useState(
-    target.role === "vulnerable" ? target.row.nokRelation : "",
-  );
-  const [nokContact, setNokContact] = useState(
-    target.role === "vulnerable" ? target.row.nokContact : "",
-  );
-  const [error, setError] = useState<string | null>(null);
-
-  const update = useMutation({
-    mutationFn: (body: AdminUpdateUserRequest) =>
-      adminUpdateUser(target.role, r.id, body, { credentials: "include" }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: USERS_KEY });
-      onSaved();
-    },
-    onError: (err) =>
-      setError(
-        (err as { data?: { message?: string } })?.data?.message ??
-          "Could not update user.",
-      ),
-  });
-
-  function onSubmit(e: FormEvent) {
-    e.preventDefault();
-    setError(null);
-    const body: AdminUpdateUserRequest = {};
-    if (name.trim() !== r.name) body.name = name.trim();
-    if (email.trim().toLowerCase() !== r.email) body.email = email.trim().toLowerCase();
-    if (password.length > 0) body.password = password;
-    if (target.role === "volunteer") {
-      const orig = target.row.skills ?? "";
-      if (skills !== orig) body.skills = skills.trim() || null;
-    }
-    if (target.role === "vulnerable") {
-      if (address.trim() !== target.row.address) body.address = address.trim();
-      if (nokName.trim() !== target.row.nokName) body.nokName = nokName.trim();
-      if (nokRelation.trim() !== target.row.nokRelation) body.nokRelation = nokRelation.trim();
-      if (nokContact.trim() !== target.row.nokContact) body.nokContact = nokContact.trim();
-    }
-    if (Object.keys(body).length === 0) {
-      setError("No changes to save.");
-      return;
-    }
-    update.mutate(body);
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <form
-        onSubmit={onSubmit}
-        className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto"
-      >
-        <div>
-          <h3 className="font-serif text-xl font-bold text-stone-900">
-            Edit {target.role} account
-          </h3>
-          <p className="text-xs text-stone-500 mt-0.5">
-            ID #{r.id} · Leave password blank to keep current.
-          </p>
-        </div>
-
-        <Field label="Full name">
-          <input
-            type="text"
-            required
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full rounded-lg border border-stone-200 px-3 py-2 focus:outline-none focus:border-[hsl(var(--primary))]"
-          />
-        </Field>
-
-        <Field label="Email">
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-lg border border-stone-200 px-3 py-2 font-mono focus:outline-none focus:border-[hsl(var(--primary))]"
-          />
-        </Field>
-
-        <Field label="New password (optional)">
-          <input
-            type="password"
-            autoComplete="new-password"
-            minLength={8}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Leave blank to keep existing"
-            className="w-full rounded-lg border border-stone-200 px-3 py-2 font-mono focus:outline-none focus:border-[hsl(var(--primary))]"
-          />
-        </Field>
-
-        {target.role === "volunteer" && (
-          <Field label="Skills">
-            <input
-              type="text"
-              value={skills}
-              onChange={(e) => setSkills(e.target.value)}
-              placeholder="e.g. CPR, First Aid"
-              className="w-full rounded-lg border border-stone-200 px-3 py-2 focus:outline-none focus:border-[hsl(var(--primary))]"
-            />
-          </Field>
-        )}
-
-        {target.role === "vulnerable" && (
-          <>
-            <Field label="Address">
-              <input
-                type="text"
-                required
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                className="w-full rounded-lg border border-stone-200 px-3 py-2 focus:outline-none focus:border-[hsl(var(--primary))]"
-              />
-            </Field>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Next-of-kin name">
-                <input
-                  type="text"
-                  required
-                  value={nokName}
-                  onChange={(e) => setNokName(e.target.value)}
-                  className="w-full rounded-lg border border-stone-200 px-3 py-2 focus:outline-none focus:border-[hsl(var(--primary))]"
-                />
-              </Field>
-              <Field label="Relation">
-                <input
-                  type="text"
-                  required
-                  value={nokRelation}
-                  onChange={(e) => setNokRelation(e.target.value)}
-                  className="w-full rounded-lg border border-stone-200 px-3 py-2 focus:outline-none focus:border-[hsl(var(--primary))]"
-                />
-              </Field>
-            </div>
-            <Field label="Next-of-kin contact">
-              <input
-                type="text"
-                required
-                value={nokContact}
-                onChange={(e) => setNokContact(e.target.value)}
-                className="w-full rounded-lg border border-stone-200 px-3 py-2 font-mono focus:outline-none focus:border-[hsl(var(--primary))]"
-              />
-            </Field>
-          </>
-        )}
-
-        {error && (
-          <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-            {error}
-          </p>
-        )}
-
-        <div className="flex justify-end gap-2 pt-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-sm px-4 py-2 rounded-lg border border-stone-300 hover:bg-stone-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={update.isPending}
-            className="text-sm px-4 py-2 rounded-lg bg-[hsl(var(--primary))] text-white hover:opacity-90 disabled:opacity-60"
-          >
-            {update.isPending ? "Saving…" : "Save changes"}
-          </button>
-        </div>
-      </form>
     </div>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className="block text-xs font-semibold uppercase tracking-wider text-stone-500 mb-1.5">
-        {label}
-      </span>
-      {children}
-    </label>
   );
 }
