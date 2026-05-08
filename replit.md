@@ -1,6 +1,6 @@
-# [Project name]
+# Fire Kaki
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A neighbour-powered first-response network for Singapore's most vulnerable — proposal site presenting the four-frontend, layered-backend community safety platform inspired by the Jalan Besar Fire Safety Kakis.
 
 ## Run & Operate
 
