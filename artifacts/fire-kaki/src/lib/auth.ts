@@ -4,6 +4,7 @@ import {
   login,
   logout,
   signup,
+  resendVerification,
   type SessionUser,
   type LoginRequest,
   type SignupRequest,
@@ -54,5 +55,11 @@ export function useLogout() {
     onSuccess: () => {
       qc.setQueryData(ME_KEY, null);
     },
+  });
+}
+
+export function useResendVerification() {
+  return useMutation({
+    mutationFn: () => resendVerification({ credentials: "include" }),
   });
 }

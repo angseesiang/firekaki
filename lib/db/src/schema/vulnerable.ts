@@ -16,6 +16,9 @@ export const vulnerableUsers = pgTable("vulnerable_users", {
   nokRelation: text("nok_relation").notNull(),
   nokContact: text("nok_contact").notNull(),
   verified: boolean("verified").notNull().default(false),
+  emailVerifiedAt: timestamp("email_verified_at"),
+  verificationToken: text("verification_token"),
+  verificationTokenExpiresAt: timestamp("verification_token_expires_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

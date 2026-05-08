@@ -34,6 +34,7 @@ A neighbour-powered first-response network for Singapore's most vulnerable — p
 
 - Each role gets its own isolated "vault" table — `admin_users`, `reviewer_users`, `volunteer_users`, `vulnerable_users` — so the same email can register independently as Volunteer and Vulnerable. Login requires a role to disambiguate.
 - Sessions are stored in Postgres via `connect-pg-simple` (table `session`, auto-created on first run) so they survive restarts.
+- Volunteer and Vulnerable signups require email verification: a one-time 32-byte token (24h TTL) is stored on the row and a Resend email links to `/verify?token=…&role=…`. `email_verified_at` flags successful verification; the session carries `emailVerified: boolean` so the dashboard can show a banner with a "Resend" button (`POST /api/auth/resend-verification`). Reviewer/Admin accounts are admin-created so no email check is required.
 - Reviewer and Admin accounts are not self-registerable. Bootstrap the first Admin with `pnpm --filter @workspace/scripts run seed-admin` (env vars `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME`, or positional args). Once signed in as Admin, use `/admin` to create more Reviewer or Admin accounts (POST `/api/admin/users`, gated by `requireAdmin` middleware).
 
 ## Product
@@ -50,7 +51,9 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Resend will refuse to send from an unverified domain (403 `validation_error`). The default `from` is `onboarding@resend.dev` — override with `RESEND_FROM_EMAIL` only after verifying the domain at https://resend.com/domains. Email-send failures are logged but do not block signup.
+- After any edit to `lib/api-spec/openapi.yaml`, run `pnpm --filter @workspace/api-spec run codegen` AND restart the api-server workflow so its esbuild bundle picks up the regenerated zod schemas.
+- `pnpm --filter @workspace/db run push` will try to drop the manually-created `session` table. For additive schema changes, use raw SQL `ALTER TABLE` via `executeSql` instead.
 
 ## Pointers
 

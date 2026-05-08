@@ -1,7 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Flame, ShieldCheck, Clock } from "lucide-react";
-import { useMe, useLogout } from "@/lib/auth";
+import { Flame, ShieldCheck, Clock, Mail, CheckCircle2 } from "lucide-react";
+import { useMe, useLogout, useResendVerification } from "@/lib/auth";
 
 const ROLE_BLURB: Record<string, string> = {
   admin:
@@ -17,6 +17,8 @@ const ROLE_BLURB: Record<string, string> = {
 export default function DashboardPage() {
   const me = useMe();
   const logout = useLogout();
+  const resend = useResendVerification();
+  const [resendMsg, setResendMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [, navigate] = useLocation();
 
   useEffect(() => {
@@ -59,6 +61,65 @@ export default function DashboardPage() {
             Welcome, {u.name}.
           </h1>
         </div>
+
+        {(u.role === "volunteer" || u.role === "vulnerable") &&
+          !u.emailVerified && (
+            <div className="mb-8 bg-amber-50 border border-amber-200 rounded-xl p-5 flex items-start gap-3">
+              <Mail className="w-5 h-5 mt-0.5 text-amber-700 shrink-0" />
+              <div className="flex-1">
+                <p className="font-semibold text-amber-900">
+                  Confirm your email address
+                </p>
+                <p className="text-sm text-amber-800 mt-1">
+                  We sent a verification link to{" "}
+                  <span className="font-mono">{u.email}</span>. Click it to
+                  finish activating your account.
+                </p>
+                {resendMsg && (
+                  <p
+                    className={`text-sm mt-2 ${
+                      resendMsg.kind === "ok"
+                        ? "text-green-700"
+                        : "text-red-700"
+                    }`}
+                  >
+                    {resendMsg.text}
+                  </p>
+                )}
+                <button
+                  onClick={() => {
+                    setResendMsg(null);
+                    resend.mutate(undefined, {
+                      onSuccess: () =>
+                        setResendMsg({
+                          kind: "ok",
+                          text: "Sent — check your inbox (and spam folder).",
+                        }),
+                      onError: (err) =>
+                        setResendMsg({
+                          kind: "err",
+                          text:
+                            (err as { data?: { message?: string } })?.data
+                              ?.message ?? "Could not resend right now.",
+                        }),
+                    });
+                  }}
+                  disabled={resend.isPending}
+                  className="mt-3 text-sm font-medium text-amber-900 hover:text-amber-700 underline disabled:opacity-60"
+                >
+                  {resend.isPending ? "Resending…" : "Resend verification email"}
+                </button>
+              </div>
+            </div>
+          )}
+
+        {(u.role === "volunteer" || u.role === "vulnerable") &&
+          u.emailVerified && (
+            <div className="mb-8 bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-2 text-sm text-green-800">
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+              Email verified — your account is fully active.
+            </div>
+          )}
 
         <div className="grid md:grid-cols-3 gap-4 mb-8">
           <Card icon={<ShieldCheck className="w-4 h-4" />} label="Role">

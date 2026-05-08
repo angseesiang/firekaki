@@ -13,4 +13,5 @@ export interface SessionUser {
   name: string;
   role: Role;
   verified?: boolean;
+  emailVerified: boolean;
 }

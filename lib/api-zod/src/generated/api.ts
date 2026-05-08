@@ -47,6 +47,7 @@ export const SignupResponse = zod.object({
   name: zod.string(),
   role: zod.enum(["admin", "reviewer", "volunteer", "vulnerable"]),
   verified: zod.boolean().optional(),
+  emailVerified: zod.boolean(),
 });
 
 /**
@@ -64,12 +65,34 @@ export const LoginResponse = zod.object({
   name: zod.string(),
   role: zod.enum(["admin", "reviewer", "volunteer", "vulnerable"]),
   verified: zod.boolean().optional(),
+  emailVerified: zod.boolean(),
 });
 
 /**
  * @summary Log out
  */
 export const LogoutResponse = zod.object({
+  ok: zod.boolean(),
+});
+
+/**
+ * @summary Verify an email address using the token sent in the signup email
+ */
+export const VerifyEmailQueryParams = zod.object({
+  token: zod.coerce.string(),
+  role: zod.enum(["volunteer", "vulnerable"]),
+});
+
+export const VerifyEmailResponse = zod.object({
+  ok: zod.boolean(),
+  email: zod.string(),
+  role: zod.enum(["volunteer", "vulnerable"]),
+});
+
+/**
+ * @summary Resend the verification email for the signed-in user
+ */
+export const ResendVerificationResponse = zod.object({
   ok: zod.boolean(),
 });
 
@@ -101,4 +124,5 @@ export const GetMeResponse = zod.object({
   name: zod.string(),
   role: zod.enum(["admin", "reviewer", "volunteer", "vulnerable"]),
   verified: zod.boolean().optional(),
+  emailVerified: zod.boolean(),
 });

@@ -11,6 +11,7 @@ declare module "express-session" {
       name: string;
       role: Role;
       verified?: boolean;
+      emailVerified: boolean;
     };
   }
 }

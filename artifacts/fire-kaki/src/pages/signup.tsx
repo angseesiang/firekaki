@@ -51,7 +51,7 @@ export default function SignupPage() {
     };
 
     signup.mutate(body, {
-      onSuccess: () => navigate("/dashboard"),
+      onSuccess: () => navigate("/dashboard?welcome=1"),
       onError: (err) => {
         const msg =
           (err as { data?: { message?: string } })?.data?.message ??

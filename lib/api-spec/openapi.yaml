@@ -92,6 +92,60 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/OkResponse"
+  /auth/verify:
+    get:
+      operationId: verifyEmail
+      tags: [auth]
+      summary: Verify an email address using the token sent in the signup email
+      parameters:
+        - in: query
+          name: token
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: role
+          required: true
+          schema:
+            type: string
+            enum: [volunteer, vulnerable]
+      responses:
+        "200":
+          description: Verified
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmailVerified"
+        "400":
+          description: Invalid or expired token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /auth/resend-verification:
+    post:
+      operationId: resendVerification
+      tags: [auth]
+      summary: Resend the verification email for the signed-in user
+      responses:
+        "200":
+          description: Sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "400":
+          description: Already verified or wrong role
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /admin/users:
     post:
       operationId: adminCreateUser
@@ -243,6 +297,20 @@ components:
         - email
         - password
         - role
+    EmailVerified:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        email:
+          type: string
+        role:
+          type: string
+          enum: [volunteer, vulnerable]
+      required:
+        - ok
+        - email
+        - role
     AdminRole:
       type: string
       enum: [reviewer, admin]
@@ -292,8 +360,11 @@ components:
           $ref: "#/components/schemas/Role"
         verified:
           type: boolean
+        emailVerified:
+          type: boolean
       required:
         - id
         - email
         - name
         - role
+        - emailVerified

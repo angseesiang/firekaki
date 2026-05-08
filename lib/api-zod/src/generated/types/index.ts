@@ -9,6 +9,8 @@
 export * from "./adminCreatedUser";
 export * from "./adminCreateUserRequest";
 export * from "./adminRole";
+export * from "./emailVerified";
+export * from "./emailVerifiedRole";
 export * from "./errorResponse";
 export * from "./healthStatus";
 export * from "./loginRequest";
@@ -17,5 +19,7 @@ export * from "./role";
 export * from "./sessionUser";
 export * from "./signupRequest";
 export * from "./signupRole";
+export * from "./verifyEmailParams";
+export * from "./verifyEmailRole";
 export * from "./volunteerProfileInput";
 export * from "./vulnerableProfileInput";

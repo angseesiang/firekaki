@@ -62,6 +62,20 @@ export interface LoginRequest {
   role: Role;
 }
 
+export type EmailVerifiedRole =
+  (typeof EmailVerifiedRole)[keyof typeof EmailVerifiedRole];
+
+export const EmailVerifiedRole = {
+  volunteer: "volunteer",
+  vulnerable: "vulnerable",
+} as const;
+
+export interface EmailVerified {
+  ok: boolean;
+  email: string;
+  role: EmailVerifiedRole;
+}
+
 export type AdminRole = (typeof AdminRole)[keyof typeof AdminRole];
 
 export const AdminRole = {
@@ -90,4 +104,18 @@ export interface SessionUser {
   name: string;
   role: Role;
   verified?: boolean;
+  emailVerified: boolean;
 }
+
+export type VerifyEmailParams = {
+  token: string;
+  role: VerifyEmailRole;
+};
+
+export type VerifyEmailRole =
+  (typeof VerifyEmailRole)[keyof typeof VerifyEmailRole];
+
+export const VerifyEmailRole = {
+  volunteer: "volunteer",
+  vulnerable: "vulnerable",
+} as const;
