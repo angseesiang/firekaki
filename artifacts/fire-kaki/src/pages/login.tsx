@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Link, useLocation } from "wouter";
-import { Flame } from "lucide-react";
+import { Flame, ArrowLeft } from "lucide-react";
 import { useLogin } from "@/lib/auth";
 import type { LoginRequest } from "@workspace/api-client-react";
 
@@ -39,10 +39,19 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-[hsl(var(--background))] flex items-center justify-center px-6 py-16">
       <div className="w-full max-w-md">
-        <Link href="/" className="flex items-center gap-2 text-[hsl(var(--primary))] mb-8">
+        <div className="flex items-center justify-between mb-8">
+          <Link href="/" className="flex items-center gap-2 text-[hsl(var(--primary))]">
             <Flame className="w-5 h-5" />
             <span className="font-serif text-xl font-bold">Fire Kaki</span>
           </Link>
+          <Link
+            href="/"
+            className="flex items-center gap-1.5 text-sm font-medium text-stone-600 hover:text-[hsl(var(--primary))] transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to home
+          </Link>
+        </div>
 
         <div className="bg-white border border-stone-200 rounded-2xl p-8 shadow-sm">
           <h1 className="font-serif text-3xl font-bold text-stone-900 mb-2">
