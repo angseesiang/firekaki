@@ -109,8 +109,8 @@ router.post("/auth/signup", async (req, res) => {
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
-  const verificationToken = newToken();
-  const tokenExpires = new Date(Date.now() + TOKEN_TTL_MS);
+  // Email verification has been disabled — every signup is auto-verified.
+  const autoVerifiedAt = new Date();
 
   let sessionUser: SessionUser;
   let primaryRole: EmailedRole;
@@ -148,8 +148,7 @@ router.post("/auth/signup", async (req, res) => {
             name: nameNorm,
             skills: volunteer?.skills?.trim() || null,
             gpsConsent: volunteer?.gpsConsent ?? false,
-            verificationToken,
-            verificationTokenExpiresAt: tokenExpires,
+            emailVerifiedAt: autoVerifiedAt,
           })
           .returning({ id: volunteerUsers.id });
         const row = inserted[0];
@@ -186,8 +185,7 @@ router.post("/auth/signup", async (req, res) => {
             nokName: vulnerable!.nokName.trim(),
             nokRelation: vulnerable!.nokRelation.trim(),
             nokContact: vulnerable!.nokContact.trim(),
-            verificationToken,
-            verificationTokenExpiresAt: tokenExpires,
+            emailVerifiedAt: autoVerifiedAt,
           })
           .returning({
             id: vulnerableUsers.id,
@@ -262,7 +260,7 @@ router.post("/auth/signup", async (req, res) => {
       name: nameNorm,
       role: result.role,
       verified: result.verified,
-      emailVerified: false,
+      emailVerified: true,
     };
   } catch (err) {
     if (err instanceof HttpError) {
@@ -276,16 +274,8 @@ router.post("/auth/signup", async (req, res) => {
     return sendError(res, 500, "Could not complete sign-up");
   }
 
-  // Send verification email (non-fatal — user can request resend later)
-  const sendResult = await sendVerificationEmail({
-    to: emailNorm,
-    name: nameNorm,
-    role: primaryRole,
-    token: verificationToken,
-  });
-  if (!sendResult.ok) {
-    req.log.warn({ err: sendResult.error }, "verification email send failed");
-  }
+  // Email verification has been removed — no email is sent on signup.
+  void primaryRole;
 
   try {
     await regenerateAndSet(req, sessionUser);

@@ -118,7 +118,6 @@ export default function DashboardPage() {
           </div>
         )}
 
-        <EmailVerificationBanner />
 
         {(isReviewerOrHigher || isNok) && <EmergencyNotifier userId={u.id} />}
 
