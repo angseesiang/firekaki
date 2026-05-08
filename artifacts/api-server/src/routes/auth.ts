@@ -125,6 +125,17 @@ router.post("/auth/signup", async (req, res) => {
         if (existing.length > 0) {
           throw new HttpError(409, "Email already registered as Volunteer");
         }
+        const otherVault = await tx
+          .select({ id: vulnerableUsers.id })
+          .from(vulnerableUsers)
+          .where(eq(vulnerableUsers.email, emailNorm))
+          .limit(1);
+        if (otherVault.length > 0) {
+          throw new HttpError(
+            409,
+            "This email is already registered as a Vulnerable resident. Please use a different email.",
+          );
+        }
         const inserted = await tx
           .insert(volunteerUsers)
           .values({
@@ -149,6 +160,17 @@ router.post("/auth/signup", async (req, res) => {
           .limit(1);
         if (existing.length > 0) {
           throw new HttpError(409, "Email already registered as Vulnerable");
+        }
+        const otherVault = await tx
+          .select({ id: volunteerUsers.id })
+          .from(volunteerUsers)
+          .where(eq(volunteerUsers.email, emailNorm))
+          .limit(1);
+        if (otherVault.length > 0) {
+          throw new HttpError(
+            409,
+            "This email is already registered as a Volunteer. Please use a different email.",
+          );
         }
         const inserted = await tx
           .insert(vulnerableUsers)
