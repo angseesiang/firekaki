@@ -140,6 +140,44 @@ export const ListEmergenciesResponse = zod.object({
           "Volunteer-relative distance in metres, only present in volunteer scope.",
         ),
       myResponse: zod.enum(["accepted", "declined"]).nullish(),
+      myArrivedAt: zod.coerce
+        .date()
+        .nullish()
+        .describe(
+          "When the current Volunteer marked themselves arrived (volunteer scope only).",
+        ),
+      responseStats: zod
+        .object({
+          accepted: zod.number(),
+          declined: zod.number(),
+          arrived: zod.number(),
+          total: zod.number(),
+        })
+        .nullish(),
+      responders: zod
+        .array(
+          zod.object({
+            volunteerId: zod.number(),
+            name: zod.string(),
+            status: zod.enum(["accepted", "declined"]),
+            respondedAt: zod.coerce.date(),
+            arrivedAt: zod.coerce.date().nullish(),
+            distanceM: zod
+              .number()
+              .nullish()
+              .describe(
+                "Current straight-line distance from volunteer's last GPS to the emergency.",
+              ),
+            etaSeconds: zod
+              .number()
+              .nullish()
+              .describe(
+                "Estimated time to arrival (walking 5 km\/h). Null if no GPS or already arrived.",
+              ),
+          }),
+        )
+        .nullish()
+        .describe("Per-volunteer responder rows. Reviewer\/Admin scope only."),
     }),
   ),
 });
@@ -175,6 +213,44 @@ export const CreateEmergencyResponse = zod.object({
       "Volunteer-relative distance in metres, only present in volunteer scope.",
     ),
   myResponse: zod.enum(["accepted", "declined"]).nullish(),
+  myArrivedAt: zod.coerce
+    .date()
+    .nullish()
+    .describe(
+      "When the current Volunteer marked themselves arrived (volunteer scope only).",
+    ),
+  responseStats: zod
+    .object({
+      accepted: zod.number(),
+      declined: zod.number(),
+      arrived: zod.number(),
+      total: zod.number(),
+    })
+    .nullish(),
+  responders: zod
+    .array(
+      zod.object({
+        volunteerId: zod.number(),
+        name: zod.string(),
+        status: zod.enum(["accepted", "declined"]),
+        respondedAt: zod.coerce.date(),
+        arrivedAt: zod.coerce.date().nullish(),
+        distanceM: zod
+          .number()
+          .nullish()
+          .describe(
+            "Current straight-line distance from volunteer's last GPS to the emergency.",
+          ),
+        etaSeconds: zod
+          .number()
+          .nullish()
+          .describe(
+            "Estimated time to arrival (walking 5 km\/h). Null if no GPS or already arrived.",
+          ),
+      }),
+    )
+    .nullish()
+    .describe("Per-volunteer responder rows. Reviewer\/Admin scope only."),
 });
 
 /**
@@ -204,6 +280,44 @@ export const DeactivateEmergencyResponse = zod.object({
       "Volunteer-relative distance in metres, only present in volunteer scope.",
     ),
   myResponse: zod.enum(["accepted", "declined"]).nullish(),
+  myArrivedAt: zod.coerce
+    .date()
+    .nullish()
+    .describe(
+      "When the current Volunteer marked themselves arrived (volunteer scope only).",
+    ),
+  responseStats: zod
+    .object({
+      accepted: zod.number(),
+      declined: zod.number(),
+      arrived: zod.number(),
+      total: zod.number(),
+    })
+    .nullish(),
+  responders: zod
+    .array(
+      zod.object({
+        volunteerId: zod.number(),
+        name: zod.string(),
+        status: zod.enum(["accepted", "declined"]),
+        respondedAt: zod.coerce.date(),
+        arrivedAt: zod.coerce.date().nullish(),
+        distanceM: zod
+          .number()
+          .nullish()
+          .describe(
+            "Current straight-line distance from volunteer's last GPS to the emergency.",
+          ),
+        etaSeconds: zod
+          .number()
+          .nullish()
+          .describe(
+            "Estimated time to arrival (walking 5 km\/h). Null if no GPS or already arrived.",
+          ),
+      }),
+    )
+    .nullish()
+    .describe("Per-volunteer responder rows. Reviewer\/Admin scope only."),
 });
 
 /**
@@ -218,6 +332,17 @@ export const RespondEmergencyBody = zod.object({
 });
 
 export const RespondEmergencyResponse = zod.object({
+  ok: zod.boolean(),
+});
+
+/**
+ * @summary Volunteer marks themselves as arrived on-scene
+ */
+export const ArriveEmergencyParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ArriveEmergencyResponse = zod.object({
   ok: zod.boolean(),
 });
 

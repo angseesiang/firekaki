@@ -968,6 +968,90 @@ export const useRespondEmergency = <
 };
 
 /**
+ * @summary Volunteer marks themselves as arrived on-scene
+ */
+export const getArriveEmergencyUrl = (id: number) => {
+  return `/api/emergencies/${id}/arrive`;
+};
+
+export const arriveEmergency = async (
+  id: number,
+  options?: RequestInit,
+): Promise<OkResponse> => {
+  return customFetch<OkResponse>(getArriveEmergencyUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getArriveEmergencyMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof arriveEmergency>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof arriveEmergency>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["arriveEmergency"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof arriveEmergency>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return arriveEmergency(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ArriveEmergencyMutationResult = NonNullable<
+  Awaited<ReturnType<typeof arriveEmergency>>
+>;
+
+export type ArriveEmergencyMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Volunteer marks themselves as arrived on-scene
+ */
+export const useArriveEmergency = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof arriveEmergency>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof arriveEmergency>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getArriveEmergencyMutationOptions(options));
+};
+
+/**
  * @summary Reviewer/Admin — list vulnerable accounts awaiting verification
  */
 export const getListPendingVulnerableUrl = () => {

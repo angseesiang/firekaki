@@ -34,6 +34,7 @@ export const emergencyResponses = pgTable(
     status: text("status").notNull(),
     distanceM: integer("distance_m"),
     respondedAt: timestamp("responded_at").notNull().defaultNow(),
+    arrivedAt: timestamp("arrived_at"),
   },
   (t) => [primaryKey({ columns: [t.emergencyId, t.volunteerId] })],
 );

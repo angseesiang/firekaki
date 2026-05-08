@@ -178,6 +178,33 @@ export const EmergencyMyResponse = {
   declined: "declined",
 } as const;
 
+export interface EmergencyResponseStats {
+  accepted: number;
+  declined: number;
+  arrived: number;
+  total: number;
+}
+
+export type EmergencyResponderStatus =
+  (typeof EmergencyResponderStatus)[keyof typeof EmergencyResponderStatus];
+
+export const EmergencyResponderStatus = {
+  accepted: "accepted",
+  declined: "declined",
+} as const;
+
+export interface EmergencyResponder {
+  volunteerId: number;
+  name: string;
+  status: EmergencyResponderStatus;
+  respondedAt: string;
+  arrivedAt?: string | null;
+  /** Current straight-line distance from volunteer's last GPS to the emergency. */
+  distanceM?: number | null;
+  /** Estimated time to arrival (walking 5 km/h). Null if no GPS or already arrived. */
+  etaSeconds?: number | null;
+}
+
 export interface Emergency {
   id: number;
   type: EmergencyType;
@@ -194,6 +221,11 @@ export interface Emergency {
   /** Volunteer-relative distance in metres, only present in volunteer scope. */
   distanceM?: number | null;
   myResponse?: EmergencyMyResponse;
+  /** When the current Volunteer marked themselves arrived (volunteer scope only). */
+  myArrivedAt?: string | null;
+  responseStats?: EmergencyResponseStats | null;
+  /** Per-volunteer responder rows. Reviewer/Admin scope only. */
+  responders?: EmergencyResponder[] | null;
 }
 
 export interface EmergencyList {

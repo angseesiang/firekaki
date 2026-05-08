@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { EmergencyMyResponse } from "./emergencyMyResponse";
+import type { EmergencyResponder } from "./emergencyResponder";
+import type { EmergencyResponseStats } from "./emergencyResponseStats";
 import type { EmergencyStatus } from "./emergencyStatus";
 import type { EmergencyType } from "./emergencyType";
 import type { Role } from "./role";
@@ -26,4 +28,9 @@ export interface Emergency {
   /** Volunteer-relative distance in metres, only present in volunteer scope. */
   distanceM?: number | null;
   myResponse?: EmergencyMyResponse;
+  /** When the current Volunteer marked themselves arrived (volunteer scope only). */
+  myArrivedAt?: Date | null;
+  responseStats?: EmergencyResponseStats | null;
+  /** Per-volunteer responder rows. Reviewer/Admin scope only. */
+  responders?: EmergencyResponder[] | null;
 }

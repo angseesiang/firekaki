@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import {
   db,
   emergencies,
@@ -21,6 +21,7 @@ import {
 const router: IRouter = Router();
 
 const NEARBY_RADIUS_M = 2000;
+const WALKING_MPS = 5_000 / 3_600; // 5 km/h ≈ 1.389 m/s
 
 function haversineMeters(
   lat1: number,
@@ -38,9 +39,27 @@ function haversineMeters(
   return Math.round(2 * R * Math.asin(Math.sqrt(a)));
 }
 
+type ResponderRow = {
+  volunteerId: number;
+  name: string;
+  status: "accepted" | "declined";
+  respondedAt: string;
+  arrivedAt: string | null;
+  distanceM: number | null;
+  etaSeconds: number | null;
+};
+
+type Stats = { accepted: number; declined: number; arrived: number; total: number };
+
 function serialize(
   e: typeof emergencies.$inferSelect,
-  extras: { distanceM?: number | null; myResponse?: string | null } = {},
+  extras: {
+    distanceM?: number | null;
+    myResponse?: string | null;
+    myArrivedAt?: Date | null;
+    responseStats?: Stats;
+    responders?: ResponderRow[];
+  } = {},
 ) {
   return {
     id: e.id,
@@ -61,6 +80,9 @@ function serialize(
     deactivatedAt: e.deactivatedAt ? e.deactivatedAt.toISOString() : null,
     distanceM: extras.distanceM ?? null,
     myResponse: (extras.myResponse as "accepted" | "declined" | null) ?? null,
+    myArrivedAt: extras.myArrivedAt ? extras.myArrivedAt.toISOString() : null,
+    responseStats: extras.responseStats ?? null,
+    responders: extras.responders ?? null,
   };
 }
 
@@ -145,18 +167,100 @@ router.get("/emergencies", requireAuth, async (req, res) => {
       .orderBy(desc(emergencies.createdAt));
 
     let scoped = rows;
-    let extrasFor: (e: typeof emergencies.$inferSelect) => {
-      distanceM?: number | null;
-      myResponse?: string | null;
-    } = () => ({});
-
     if (u.role === "vulnerable") {
-      // sees only their own emergencies
       scoped = rows.filter(
         (e) => e.creatorRole === "vulnerable" && e.creatorUserId === u.id,
       );
     } else if (u.role === "volunteer") {
-      // sees active emergencies within 2km of last known location, plus those they responded to
+      // computed below
+    }
+
+    // Pull all responses for visible emergencies in one query
+    const visibleIds = scoped.map((e) => e.id);
+    const allResponses = visibleIds.length
+      ? await db
+          .select({
+            emergencyId: emergencyResponses.emergencyId,
+            volunteerId: emergencyResponses.volunteerId,
+            status: emergencyResponses.status,
+            distanceM: emergencyResponses.distanceM,
+            respondedAt: emergencyResponses.respondedAt,
+            arrivedAt: emergencyResponses.arrivedAt,
+            volunteerName: volunteerUsers.name,
+            volLat: volunteerUsers.lastLat,
+            volLng: volunteerUsers.lastLng,
+          })
+          .from(emergencyResponses)
+          .leftJoin(
+            volunteerUsers,
+            eq(volunteerUsers.id, emergencyResponses.volunteerId),
+          )
+          .where(inArray(emergencyResponses.emergencyId, visibleIds))
+      : [];
+
+    const responsesByEmergency = new Map<
+      number,
+      typeof allResponses
+    >();
+    for (const r of allResponses) {
+      const arr = responsesByEmergency.get(r.emergencyId) ?? [];
+      arr.push(r);
+      responsesByEmergency.set(r.emergencyId, arr);
+    }
+
+    function statsFor(eid: number): Stats {
+      const rs = responsesByEmergency.get(eid) ?? [];
+      let accepted = 0;
+      let declined = 0;
+      let arrived = 0;
+      for (const r of rs) {
+        if (r.status === "accepted") accepted += 1;
+        else if (r.status === "declined") declined += 1;
+        if (r.arrivedAt) arrived += 1;
+      }
+      return { accepted, declined, arrived, total: rs.length };
+    }
+
+    function respondersFor(e: typeof emergencies.$inferSelect): ResponderRow[] {
+      const rs = responsesByEmergency.get(e.id) ?? [];
+      return rs
+        .filter((r) => r.status === "accepted")
+        .map((r) => {
+          let dist: number | null = r.distanceM ?? null;
+          if (
+            e.lat != null &&
+            e.lng != null &&
+            r.volLat != null &&
+            r.volLng != null
+          ) {
+            dist = haversineMeters(r.volLat, r.volLng, e.lat, e.lng);
+          }
+          const eta =
+            r.arrivedAt || dist == null
+              ? null
+              : Math.max(0, Math.round(dist / WALKING_MPS));
+          return {
+            volunteerId: r.volunteerId,
+            name: r.volunteerName ?? `Volunteer #${r.volunteerId}`,
+            status: r.status as "accepted" | "declined",
+            respondedAt: r.respondedAt.toISOString(),
+            arrivedAt: r.arrivedAt ? r.arrivedAt.toISOString() : null,
+            distanceM: dist,
+            etaSeconds: eta,
+          };
+        })
+        .sort((a, b) => {
+          // arrived first, then nearest ETA
+          if ((a.arrivedAt != null) !== (b.arrivedAt != null)) {
+            return a.arrivedAt ? -1 : 1;
+          }
+          return (a.etaSeconds ?? Infinity) - (b.etaSeconds ?? Infinity);
+        });
+    }
+
+    let serialized: ReturnType<typeof serialize>[] = [];
+
+    if (u.role === "volunteer") {
       const v = await db
         .select({
           lat: volunteerUsers.lastLat,
@@ -165,39 +269,72 @@ router.get("/emergencies", requireAuth, async (req, res) => {
         .from(volunteerUsers)
         .where(eq(volunteerUsers.id, u.id))
         .limit(1);
-      const myResponses = await db
+      const myLat = v[0]?.lat;
+      const myLng = v[0]?.lng;
+      const myResp = await db
         .select()
         .from(emergencyResponses)
         .where(eq(emergencyResponses.volunteerId, u.id));
-      const respMap = new Map(myResponses.map((r) => [r.emergencyId, r]));
-      const myLat = v[0]?.lat;
-      const myLng = v[0]?.lng;
+      const myMap = new Map(myResp.map((r) => [r.emergencyId, r]));
 
-      const distances = new Map<number, number | null>();
-      scoped = rows.filter((e) => {
-        if (e.status !== "active" && !respMap.has(e.id)) return false;
-        if (respMap.has(e.id)) {
-          if (e.lat != null && e.lng != null && myLat != null && myLng != null) {
-            distances.set(e.id, haversineMeters(myLat, myLng, e.lat, e.lng));
-          }
-          return true;
-        }
-        // active and unresponded: must have location and be within radius
+      const filtered = rows.filter((e) => {
+        if (e.status !== "active" && !myMap.has(e.id)) return false;
+        if (myMap.has(e.id)) return true;
         if (e.lat == null || e.lng == null) return false;
         if (myLat == null || myLng == null) return false;
-        const d = haversineMeters(myLat, myLng, e.lat, e.lng);
-        if (d > NEARBY_RADIUS_M) return false;
-        distances.set(e.id, d);
-        return true;
+        return haversineMeters(myLat, myLng, e.lat, e.lng) <= NEARBY_RADIUS_M;
       });
-      extrasFor = (e) => ({
-        distanceM: distances.get(e.id) ?? null,
-        myResponse: respMap.get(e.id)?.status ?? null,
-      });
-    }
-    // reviewer + admin see everything (no filter)
 
-    res.json({ emergencies: scoped.map((e) => serialize(e, extrasFor(e))) });
+      // re-fetch responses for the new visible set (recompute stats only)
+      const ids = filtered.map((e) => e.id);
+      const fresh = ids.length
+        ? await db
+            .select()
+            .from(emergencyResponses)
+            .where(inArray(emergencyResponses.emergencyId, ids))
+        : [];
+      const byE = new Map<number, typeof fresh>();
+      for (const r of fresh) {
+        const arr = byE.get(r.emergencyId) ?? [];
+        arr.push(r);
+        byE.set(r.emergencyId, arr);
+      }
+      function statsForVol(eid: number): Stats {
+        const rs = byE.get(eid) ?? [];
+        let a = 0, d = 0, ar = 0;
+        for (const r of rs) {
+          if (r.status === "accepted") a += 1;
+          else if (r.status === "declined") d += 1;
+          if (r.arrivedAt) ar += 1;
+        }
+        return { accepted: a, declined: d, arrived: ar, total: rs.length };
+      }
+
+      serialized = filtered.map((e) => {
+        let dist: number | null = null;
+        if (e.lat != null && e.lng != null && myLat != null && myLng != null) {
+          dist = haversineMeters(myLat, myLng, e.lat, e.lng);
+        }
+        const mine = myMap.get(e.id);
+        return serialize(e, {
+          distanceM: dist,
+          myResponse: mine?.status ?? null,
+          myArrivedAt: mine?.arrivedAt ?? null,
+          responseStats: statsForVol(e.id),
+        });
+      });
+    } else {
+      // reviewer / admin / vulnerable
+      const includeResponders = u.role === "reviewer" || u.role === "admin";
+      serialized = scoped.map((e) =>
+        serialize(e, {
+          responseStats: statsFor(e.id),
+          responders: includeResponders ? respondersFor(e) : undefined,
+        }),
+      );
+    }
+
+    res.json({ emergencies: serialized });
   } catch (err) {
     req.log.error({ err }, "list emergencies failed");
     sendError(res, 500, "Could not list emergencies");
@@ -285,7 +422,6 @@ router.post(
       }
 
       if (!alreadyResponded) {
-        // must be in-scope: have a known distance and within radius
         if (distanceM == null) {
           return sendError(
             res,
@@ -296,6 +432,21 @@ router.post(
         if (distanceM > NEARBY_RADIUS_M) {
           return sendError(res, 403, "Emergency is outside your 2 km radius");
         }
+      }
+
+      // Switching to declined clears any prior arrival
+      const setOnUpdate: {
+        status: string;
+        distanceM: number | null;
+        respondedAt: Date;
+        arrivedAt?: Date | null;
+      } = {
+        status: parsed.data.status,
+        distanceM,
+        respondedAt: new Date(),
+      };
+      if (parsed.data.status === "declined") {
+        setOnUpdate.arrivedAt = null;
       }
 
       await db
@@ -311,7 +462,7 @@ router.post(
             emergencyResponses.emergencyId,
             emergencyResponses.volunteerId,
           ],
-          set: { status: parsed.data.status, distanceM, respondedAt: new Date() },
+          set: setOnUpdate,
         });
       res.json({ ok: true });
     } catch (err) {
@@ -321,6 +472,50 @@ router.post(
   },
 );
 
-void sql;
+router.post(
+  "/emergencies/:id/arrive",
+  requireVolunteerOrHigher,
+  async (req, res) => {
+    const u = req.session.user!;
+    if (u.role !== "volunteer") {
+      return sendError(res, 403, "Only Volunteers can mark arrival");
+    }
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return sendError(res, 400, "Invalid id");
+    try {
+      const prior = await db
+        .select()
+        .from(emergencyResponses)
+        .where(
+          and(
+            eq(emergencyResponses.emergencyId, id),
+            eq(emergencyResponses.volunteerId, u.id),
+          ),
+        )
+        .limit(1);
+      const row = prior[0];
+      if (!row) return sendError(res, 404, "You haven't responded to this emergency");
+      if (row.status !== "accepted") {
+        return sendError(res, 403, "You must accept the emergency before marking arrived");
+      }
+      if (row.arrivedAt) {
+        return res.json({ ok: true });
+      }
+      await db
+        .update(emergencyResponses)
+        .set({ arrivedAt: new Date() })
+        .where(
+          and(
+            eq(emergencyResponses.emergencyId, id),
+            eq(emergencyResponses.volunteerId, u.id),
+          ),
+        );
+      res.json({ ok: true });
+    } catch (err) {
+      req.log.error({ err }, "arrive emergency failed");
+      sendError(res, 500, "Could not mark arrival");
+    }
+  },
+);
 
 export default router;

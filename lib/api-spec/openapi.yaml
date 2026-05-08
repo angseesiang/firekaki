@@ -313,6 +313,36 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /emergencies/{id}/arrive:
+    post:
+      operationId: arriveEmergency
+      tags: [emergencies]
+      summary: Volunteer marks themselves as arrived on-scene
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "403":
+          description: Must be an accepted Volunteer for this emergency
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Response not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /reviewer/pending-vulnerable:
     get:
       operationId: listPendingVulnerable
@@ -896,6 +926,20 @@ components:
           type: string
           nullable: true
           enum: [accepted, declined]
+        myArrivedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the current Volunteer marked themselves arrived (volunteer scope only).
+        responseStats:
+          $ref: "#/components/schemas/EmergencyResponseStats"
+          nullable: true
+        responders:
+          type: array
+          nullable: true
+          description: Per-volunteer responder rows. Reviewer/Admin scope only.
+          items:
+            $ref: "#/components/schemas/EmergencyResponder"
       required:
         - id
         - type
@@ -904,6 +948,44 @@ components:
         - creatorUserId
         - creatorName
         - createdAt
+    EmergencyResponseStats:
+      type: object
+      properties:
+        accepted:
+          type: integer
+        declined:
+          type: integer
+        arrived:
+          type: integer
+        total:
+          type: integer
+      required: [accepted, declined, arrived, total]
+    EmergencyResponder:
+      type: object
+      properties:
+        volunteerId:
+          type: integer
+        name:
+          type: string
+        status:
+          type: string
+          enum: [accepted, declined]
+        respondedAt:
+          type: string
+          format: date-time
+        arrivedAt:
+          type: string
+          format: date-time
+          nullable: true
+        distanceM:
+          type: integer
+          nullable: true
+          description: Current straight-line distance from volunteer's last GPS to the emergency.
+        etaSeconds:
+          type: integer
+          nullable: true
+          description: Estimated time to arrival (walking 5 km/h). Null if no GPS or already arrived.
+      required: [volunteerId, name, status, respondedAt]
     EmergencyList:
       type: object
       properties:
