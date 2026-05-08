@@ -50,15 +50,7 @@ export default function Home() {
   );
 }
 
-const navLinks = [
-  { name: "Mission", href: "#mission" },
-  { name: "Roles", href: "#roles" },
-  { name: "Flows", href: "#flows" },
-  { name: "Mockups", href: "#mockups" },
-  { name: "Architecture", href: "#architecture" },
-  { name: "Security", href: "#security" },
-  { name: "Roadmap", href: "#roadmap" },
-];
+const navLinks: { name: string; href: string }[] = [];
 
 function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -68,7 +60,7 @@ function Navbar() {
       <div className="container mx-auto px-6 h-16 flex items-center justify-between">
         <a href="#" className="flex items-center gap-2 font-serif text-2xl font-bold tracking-tight text-primary hover:opacity-80 transition-opacity">
           <Flame className="w-6 h-6" />
-          <span>Fire Kaki</span>
+          <span>About FireKaki</span>
         </a>
         <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-muted-foreground">
           {navLinks.map(link => (
