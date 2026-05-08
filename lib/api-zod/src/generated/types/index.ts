@@ -13,6 +13,7 @@ export * from "./adminListReviewer";
 export * from "./adminListVolunteer";
 export * from "./adminListVulnerable";
 export * from "./adminRole";
+export * from "./adminUpdateUserRequest";
 export * from "./adminUsersOverview";
 export * from "./createEmergencyRequest";
 export * from "./emailVerified";

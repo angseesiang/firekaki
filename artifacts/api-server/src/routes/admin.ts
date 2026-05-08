@@ -194,6 +194,87 @@ router.post("/admin/users/:role/:id/enable", requireAdmin, async (req, res) => {
   }
 });
 
+router.post("/admin/users/:role/:id", requireAdmin, async (req, res) => {
+  const role = String(req.params.role ?? "");
+  const idStr = String(req.params.id ?? "");
+  if (!isRole(role)) return sendError(res, 400, "Invalid role");
+  const id = Number(idStr);
+  if (!Number.isInteger(id)) return sendError(res, 400, "Invalid id");
+
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  const set: Record<string, unknown> = {};
+
+  if (typeof body.name === "string") {
+    const n = body.name.trim();
+    if (!n) return sendError(res, 400, "Name cannot be empty");
+    set.name = n;
+  }
+  if (typeof body.email === "string") {
+    const e = body.email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) {
+      return sendError(res, 400, "Please enter a valid email address");
+    }
+    set.email = e;
+  }
+  if (typeof body.password === "string" && body.password.length > 0) {
+    if (body.password.length < 8) {
+      return sendError(res, 400, "Password must be at least 8 characters");
+    }
+    set.passwordHash = await bcrypt.hash(body.password, 10);
+  }
+  if (role === "volunteer") {
+    if (body.skills === null || typeof body.skills === "string") {
+      set.skills = body.skills === null ? null : (body.skills as string).trim() || null;
+    }
+  }
+  if (role === "vulnerable") {
+    for (const f of ["address", "nokName", "nokRelation", "nokContact"] as const) {
+      const v = body[f];
+      if (typeof v === "string") {
+        const t = v.trim();
+        if (!t) return sendError(res, 400, `${f} cannot be empty`);
+        set[f] = t;
+      }
+    }
+  }
+
+  if (Object.keys(set).length === 0) {
+    return sendError(res, 400, "No fields to update");
+  }
+
+  try {
+    const t = tableForRole(role);
+    if (typeof set.email === "string") {
+      const dup = await db
+        .select({ id: t.id })
+        .from(t)
+        .where(eq(t.email, set.email as string))
+        .limit(1);
+      if (dup[0] && dup[0].id !== id) {
+        return sendError(res, 409, `Email already registered as ${role}`);
+      }
+    }
+    const updated = await db
+      .update(t)
+      .set(set)
+      .where(eq(t.id, id))
+      .returning({ id: t.id });
+    if (updated.length === 0) return sendError(res, 404, "User not found");
+    res.json({ ok: true });
+  } catch (err) {
+    if (
+      typeof err === "object" &&
+      err !== null &&
+      "code" in err &&
+      (err as { code?: string }).code === "23505"
+    ) {
+      return sendError(res, 409, `Email already registered as ${role}`);
+    }
+    req.log.error({ err }, "admin update user failed");
+    sendError(res, 500, "Could not update user");
+  }
+});
+
 router.delete("/admin/users/:role/:id", requireAdmin, async (req, res) => {
   const u = req.session.user!;
   const role = String(req.params.role ?? "");

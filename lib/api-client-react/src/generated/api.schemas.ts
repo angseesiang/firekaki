@@ -91,6 +91,26 @@ export interface AdminCreateUserRequest {
   role: AdminRole;
 }
 
+/**
+ * All fields optional. Only provided fields are updated. Per-role extras are ignored when not applicable.
+ */
+export interface AdminUpdateUserRequest {
+  name?: string;
+  email?: string;
+  /** @minLength 8 */
+  password?: string;
+  /** Volunteer only. */
+  skills?: string | null;
+  /** Vulnerable only. */
+  address?: string;
+  /** Vulnerable only. */
+  nokName?: string;
+  /** Vulnerable only. */
+  nokRelation?: string;
+  /** Vulnerable only. */
+  nokContact?: string;
+}
+
 export interface AdminCreatedUser {
   id: number;
   email: string;

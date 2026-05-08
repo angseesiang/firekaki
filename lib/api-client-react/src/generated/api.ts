@@ -19,6 +19,7 @@ import type {
 import type {
   AdminCreateUserRequest,
   AdminCreatedUser,
+  AdminUpdateUserRequest,
   AdminUsersOverview,
   CreateEmergencyRequest,
   EmailVerified,
@@ -1699,6 +1700,94 @@ export const useAdminEnableUser = <
   TContext
 > => {
   return useMutation(getAdminEnableUserMutationOptions(options));
+};
+
+/**
+ * @summary Admin — update a user's profile fields
+ */
+export const getAdminUpdateUserUrl = (role: Role, id: number) => {
+  return `/api/admin/users/${role}/${id}`;
+};
+
+export const adminUpdateUser = async (
+  role: Role,
+  id: number,
+  adminUpdateUserRequest: AdminUpdateUserRequest,
+  options?: RequestInit,
+): Promise<OkResponse> => {
+  return customFetch<OkResponse>(getAdminUpdateUserUrl(role, id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(adminUpdateUserRequest),
+  });
+};
+
+export const getAdminUpdateUserMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminUpdateUser>>,
+    TError,
+    { role: Role; id: number; data: BodyType<AdminUpdateUserRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof adminUpdateUser>>,
+  TError,
+  { role: Role; id: number; data: BodyType<AdminUpdateUserRequest> },
+  TContext
+> => {
+  const mutationKey = ["adminUpdateUser"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof adminUpdateUser>>,
+    { role: Role; id: number; data: BodyType<AdminUpdateUserRequest> }
+  > = (props) => {
+    const { role, id, data } = props ?? {};
+
+    return adminUpdateUser(role, id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AdminUpdateUserMutationResult = NonNullable<
+  Awaited<ReturnType<typeof adminUpdateUser>>
+>;
+export type AdminUpdateUserMutationBody = BodyType<AdminUpdateUserRequest>;
+export type AdminUpdateUserMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Admin — update a user's profile fields
+ */
+export const useAdminUpdateUser = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminUpdateUser>>,
+    TError,
+    { role: Role; id: number; data: BodyType<AdminUpdateUserRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof adminUpdateUser>>,
+  TError,
+  { role: Role; id: number; data: BodyType<AdminUpdateUserRequest> },
+  TContext
+> => {
+  return useMutation(getAdminUpdateUserMutationOptions(options));
 };
 
 /**

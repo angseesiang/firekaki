@@ -512,6 +512,35 @@ export const AdminEnableUserResponse = zod.object({
 });
 
 /**
+ * @summary Admin — update a user's profile fields
+ */
+export const AdminUpdateUserParams = zod.object({
+  role: zod.enum(["admin", "reviewer", "volunteer", "vulnerable"]),
+  id: zod.coerce.number(),
+});
+
+export const adminUpdateUserBodyPasswordMin = 8;
+
+export const AdminUpdateUserBody = zod
+  .object({
+    name: zod.string().optional(),
+    email: zod.string().optional(),
+    password: zod.string().min(adminUpdateUserBodyPasswordMin).optional(),
+    skills: zod.string().nullish().describe("Volunteer only."),
+    address: zod.string().optional().describe("Vulnerable only."),
+    nokName: zod.string().optional().describe("Vulnerable only."),
+    nokRelation: zod.string().optional().describe("Vulnerable only."),
+    nokContact: zod.string().optional().describe("Vulnerable only."),
+  })
+  .describe(
+    "All fields optional. Only provided fields are updated. Per-role extras are ignored when not applicable.",
+  );
+
+export const AdminUpdateUserResponse = zod.object({
+  ok: zod.boolean(),
+});
+
+/**
  * @summary Admin — permanently remove a user from their vault
  */
 export const AdminDeleteUserParams = zod.object({

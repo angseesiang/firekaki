@@ -8,6 +8,7 @@ import {
   Power,
   Trash2,
   UserX,
+  Pencil,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -16,7 +17,9 @@ import {
   adminDisableUser,
   adminEnableUser,
   adminDeleteUser,
+  adminUpdateUser,
   type AdminCreateUserRequest,
+  type AdminUpdateUserRequest,
   type AdminCreatedUser,
   type Role,
 } from "@workspace/api-client-react";
@@ -230,10 +233,17 @@ const TABS: { role: Role; label: string }[] = [
   { role: "vulnerable", label: "Vulnerable" },
 ];
 
+type EditTarget =
+  | { role: "admin"; row: Overview["admins"][number] }
+  | { role: "reviewer"; row: Overview["reviewers"][number] }
+  | { role: "volunteer"; row: Overview["volunteers"][number] }
+  | { role: "vulnerable"; row: Overview["vulnerables"][number] };
+
 function UserVaults({ currentAdminId }: { currentAdminId: number }) {
   const qc = useQueryClient();
   const [active, setActive] = useState<Role>("admin");
   const [confirmDelete, setConfirmDelete] = useState<{ role: Role; id: number; email: string } | null>(null);
+  const [editing, setEditing] = useState<EditTarget | null>(null);
   const [actionMsg, setActionMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
 
   const list = useQuery({
@@ -349,10 +359,23 @@ function UserVaults({ currentAdminId }: { currentAdminId: number }) {
             onDisable={(id) => disable.mutate({ role: active, id })}
             onEnable={(id) => enableM.mutate({ role: active, id })}
             onDelete={(id, email) => setConfirmDelete({ role: active, id, email })}
+            onEdit={(target) => setEditing(target)}
             busy={disable.isPending || enableM.isPending}
           />
         )}
       </div>
+
+      {editing && (
+        <EditUserModal
+          target={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => {
+            setEditing(null);
+            setActionMsg({ kind: "ok", text: "Account updated." });
+            refresh();
+          }}
+        />
+      )}
 
       {confirmDelete && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
@@ -397,6 +420,7 @@ function UserTable({
   onDisable,
   onEnable,
   onDelete,
+  onEdit,
   busy,
 }: {
   role: Role;
@@ -405,6 +429,7 @@ function UserTable({
   onDisable: (id: number) => void;
   onEnable: (id: number) => void;
   onDelete: (id: number, email: string) => void;
+  onEdit: (target: EditTarget) => void;
   busy: boolean;
 }) {
   const rows: Array<{
@@ -516,6 +541,27 @@ function UserTable({
               {r.extra && <div className="mt-1.5">{r.extra}</div>}
             </div>
             <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  if (role === "admin") {
+                    const row = data.admins.find((x) => x.id === r.id);
+                    if (row) onEdit({ role: "admin", row });
+                  } else if (role === "reviewer") {
+                    const row = data.reviewers.find((x) => x.id === r.id);
+                    if (row) onEdit({ role: "reviewer", row });
+                  } else if (role === "volunteer") {
+                    const row = data.volunteers.find((x) => x.id === r.id);
+                    if (row) onEdit({ role: "volunteer", row });
+                  } else {
+                    const row = data.vulnerables.find((x) => x.id === r.id);
+                    if (row) onEdit({ role: "vulnerable", row });
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold border border-stone-300 text-stone-700 rounded-md px-3 py-1.5 hover:bg-stone-50"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+                Edit
+              </button>
               {r.disabled ? (
                 <button
                   onClick={() => onEnable(r.id)}
@@ -550,5 +596,216 @@ function UserTable({
         );
       })}
     </ul>
+  );
+}
+
+/* ─────────── Edit user modal ─────────── */
+
+function EditUserModal({
+  target,
+  onClose,
+  onSaved,
+}: {
+  target: EditTarget;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const qc = useQueryClient();
+  const r = target.row;
+  const [name, setName] = useState(r.name);
+  const [email, setEmail] = useState(r.email);
+  const [password, setPassword] = useState("");
+  const [skills, setSkills] = useState(
+    target.role === "volunteer" ? target.row.skills ?? "" : "",
+  );
+  const [address, setAddress] = useState(
+    target.role === "vulnerable" ? target.row.address : "",
+  );
+  const [nokName, setNokName] = useState(
+    target.role === "vulnerable" ? target.row.nokName : "",
+  );
+  const [nokRelation, setNokRelation] = useState(
+    target.role === "vulnerable" ? target.row.nokRelation : "",
+  );
+  const [nokContact, setNokContact] = useState(
+    target.role === "vulnerable" ? target.row.nokContact : "",
+  );
+  const [error, setError] = useState<string | null>(null);
+
+  const update = useMutation({
+    mutationFn: (body: AdminUpdateUserRequest) =>
+      adminUpdateUser(target.role, r.id, body, { credentials: "include" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: USERS_KEY });
+      onSaved();
+    },
+    onError: (err) =>
+      setError(
+        (err as { data?: { message?: string } })?.data?.message ??
+          "Could not update user.",
+      ),
+  });
+
+  function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    const body: AdminUpdateUserRequest = {};
+    if (name.trim() !== r.name) body.name = name.trim();
+    if (email.trim().toLowerCase() !== r.email) body.email = email.trim().toLowerCase();
+    if (password.length > 0) body.password = password;
+    if (target.role === "volunteer") {
+      const orig = target.row.skills ?? "";
+      if (skills !== orig) body.skills = skills.trim() || null;
+    }
+    if (target.role === "vulnerable") {
+      if (address.trim() !== target.row.address) body.address = address.trim();
+      if (nokName.trim() !== target.row.nokName) body.nokName = nokName.trim();
+      if (nokRelation.trim() !== target.row.nokRelation) body.nokRelation = nokRelation.trim();
+      if (nokContact.trim() !== target.row.nokContact) body.nokContact = nokContact.trim();
+    }
+    if (Object.keys(body).length === 0) {
+      setError("No changes to save.");
+      return;
+    }
+    update.mutate(body);
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <form
+        onSubmit={onSubmit}
+        className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto"
+      >
+        <div>
+          <h3 className="font-serif text-xl font-bold text-stone-900">
+            Edit {target.role} account
+          </h3>
+          <p className="text-xs text-stone-500 mt-0.5">
+            ID #{r.id} · Leave password blank to keep current.
+          </p>
+        </div>
+
+        <Field label="Full name">
+          <input
+            type="text"
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full rounded-lg border border-stone-200 px-3 py-2 focus:outline-none focus:border-[hsl(var(--primary))]"
+          />
+        </Field>
+
+        <Field label="Email">
+          <input
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full rounded-lg border border-stone-200 px-3 py-2 font-mono focus:outline-none focus:border-[hsl(var(--primary))]"
+          />
+        </Field>
+
+        <Field label="New password (optional)">
+          <input
+            type="password"
+            autoComplete="new-password"
+            minLength={8}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Leave blank to keep existing"
+            className="w-full rounded-lg border border-stone-200 px-3 py-2 font-mono focus:outline-none focus:border-[hsl(var(--primary))]"
+          />
+        </Field>
+
+        {target.role === "volunteer" && (
+          <Field label="Skills">
+            <input
+              type="text"
+              value={skills}
+              onChange={(e) => setSkills(e.target.value)}
+              placeholder="e.g. CPR, First Aid"
+              className="w-full rounded-lg border border-stone-200 px-3 py-2 focus:outline-none focus:border-[hsl(var(--primary))]"
+            />
+          </Field>
+        )}
+
+        {target.role === "vulnerable" && (
+          <>
+            <Field label="Address">
+              <input
+                type="text"
+                required
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                className="w-full rounded-lg border border-stone-200 px-3 py-2 focus:outline-none focus:border-[hsl(var(--primary))]"
+              />
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Next-of-kin name">
+                <input
+                  type="text"
+                  required
+                  value={nokName}
+                  onChange={(e) => setNokName(e.target.value)}
+                  className="w-full rounded-lg border border-stone-200 px-3 py-2 focus:outline-none focus:border-[hsl(var(--primary))]"
+                />
+              </Field>
+              <Field label="Relation">
+                <input
+                  type="text"
+                  required
+                  value={nokRelation}
+                  onChange={(e) => setNokRelation(e.target.value)}
+                  className="w-full rounded-lg border border-stone-200 px-3 py-2 focus:outline-none focus:border-[hsl(var(--primary))]"
+                />
+              </Field>
+            </div>
+            <Field label="Next-of-kin contact">
+              <input
+                type="text"
+                required
+                value={nokContact}
+                onChange={(e) => setNokContact(e.target.value)}
+                className="w-full rounded-lg border border-stone-200 px-3 py-2 font-mono focus:outline-none focus:border-[hsl(var(--primary))]"
+              />
+            </Field>
+          </>
+        )}
+
+        {error && (
+          <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+            {error}
+          </p>
+        )}
+
+        <div className="flex justify-end gap-2 pt-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-sm px-4 py-2 rounded-lg border border-stone-300 hover:bg-stone-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={update.isPending}
+            className="text-sm px-4 py-2 rounded-lg bg-[hsl(var(--primary))] text-white hover:opacity-90 disabled:opacity-60"
+          >
+            {update.isPending ? "Saving…" : "Save changes"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <span className="block text-xs font-semibold uppercase tracking-wider text-stone-500 mb-1.5">
+        {label}
+      </span>
+      {children}
+    </label>
   );
 }
