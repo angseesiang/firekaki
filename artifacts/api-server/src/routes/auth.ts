@@ -278,6 +278,26 @@ router.post("/auth/resend-verification", async (req, res) => {
   }
   const role = u.role;
   const table = emailableTable(role);
+
+  const rows = await db
+    .select({
+      id: table.id,
+      email: table.email,
+      emailVerifiedAt: table.emailVerifiedAt,
+    })
+    .from(table)
+    .where(and(eq(table.id, u.id), eq(table.email, u.email)))
+    .limit(1);
+  const row = rows[0];
+  if (!row) return sendError(res, 404, "Account not found");
+  if (row.emailVerifiedAt) {
+    if (req.session.user) {
+      req.session.user.emailVerified = true;
+      req.session.save(() => {});
+    }
+    return sendError(res, 400, "Email already verified");
+  }
+
   const token = newToken();
   const expires = new Date(Date.now() + TOKEN_TTL_MS);
   await db

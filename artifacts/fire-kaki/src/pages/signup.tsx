@@ -4,14 +4,15 @@ import { Flame, Heart, Users, ArrowLeft } from "lucide-react";
 import { useSignup } from "@/lib/auth";
 import type { SignupRequest } from "@workspace/api-client-react";
 
+type Role = "volunteer" | "vulnerable";
+
 export default function SignupPage() {
   const [, navigate] = useLocation();
   const signup = useSignup();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
-  const [asVolunteer, setAsVolunteer] = useState(true);
-  const [asVulnerable, setAsVulnerable] = useState(false);
+  const [role, setRole] = useState<Role>("volunteer");
 
   const [skills, setSkills] = useState("");
   const [gpsConsent, setGpsConsent] = useState(true);
@@ -26,26 +27,20 @@ export default function SignupPage() {
   function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
-    if (!asVolunteer && !asVulnerable) {
-      setError("Pick at least one role to register for.");
-      return;
-    }
     if (password.length < 8) {
       setError("Password must be at least 8 characters.");
       return;
     }
 
-    const roles: SignupRequest["roles"] = [];
-    if (asVolunteer) roles.push("volunteer");
-    if (asVulnerable) roles.push("vulnerable");
-
     const body: SignupRequest = {
       email,
       password,
       name,
-      roles,
-      ...(asVolunteer && { volunteer: { skills: skills || undefined, gpsConsent } }),
-      ...(asVulnerable && {
+      roles: [role],
+      ...(role === "volunteer" && {
+        volunteer: { skills: skills || undefined, gpsConsent },
+      }),
+      ...(role === "vulnerable" && {
         vulnerable: { address, nokName, nokRelation, nokContact },
       }),
     };
@@ -60,6 +55,9 @@ export default function SignupPage() {
       },
     });
   }
+
+  const asVolunteer = role === "volunteer";
+  const asVulnerable = role === "vulnerable";
 
   return (
     <div className="min-h-screen bg-[hsl(var(--background))] flex items-center justify-center px-6 py-16">
@@ -83,8 +81,9 @@ export default function SignupPage() {
             Join the network
           </h1>
           <p className="text-stone-600 mb-8 text-sm">
-            Sign up as a Volunteer, a Vulnerable resident, or both. Reviewer and
-            Admin accounts are created by an Admin.
+            Sign up as a Volunteer or as a Vulnerable resident. If you'd like to
+            do both, sign up once for each — you can use the same email address.
+            Reviewer and Admin accounts are created by an Admin.
           </p>
 
           <form onSubmit={onSubmit} className="space-y-6">
@@ -134,10 +133,16 @@ export default function SignupPage() {
               <label className="block text-xs font-semibold uppercase tracking-wider text-stone-500 mb-3">
                 Sign up as
               </label>
-              <div className="grid sm:grid-cols-2 gap-3">
+              <div
+                role="radiogroup"
+                aria-label="Sign up as"
+                className="grid sm:grid-cols-2 gap-3"
+              >
                 <button
                   type="button"
-                  onClick={() => setAsVolunteer((v) => !v)}
+                  role="radio"
+                  aria-checked={asVolunteer}
+                  onClick={() => setRole("volunteer")}
                   className={`flex items-start gap-3 text-left p-4 rounded-xl border-2 transition ${
                     asVolunteer
                       ? "border-[hsl(var(--primary))] bg-[hsl(var(--primary))]/5"
@@ -154,7 +159,9 @@ export default function SignupPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setAsVulnerable((v) => !v)}
+                  role="radio"
+                  aria-checked={asVulnerable}
+                  onClick={() => setRole("vulnerable")}
                   className={`flex items-start gap-3 text-left p-4 rounded-xl border-2 transition ${
                     asVulnerable
                       ? "border-[hsl(var(--primary))] bg-[hsl(var(--primary))]/5"
@@ -170,6 +177,10 @@ export default function SignupPage() {
                   </div>
                 </button>
               </div>
+              <p className="text-xs text-stone-500 mt-2">
+                Want both? Complete this signup, then sign up again with the same
+                email and the other role.
+              </p>
             </div>
 
             {asVolunteer && (
@@ -211,7 +222,7 @@ export default function SignupPage() {
                   </label>
                   <input
                     type="text"
-                    required={asVulnerable}
+                    required
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
                     placeholder="Blk 207 Jln Besar #06-22"
@@ -225,7 +236,7 @@ export default function SignupPage() {
                     </label>
                     <input
                       type="text"
-                      required={asVulnerable}
+                      required
                       value={nokName}
                       onChange={(e) => setNokName(e.target.value)}
                       className="w-full rounded-lg border border-stone-200 px-3 py-2 focus:outline-none focus:border-[hsl(var(--primary))]"
@@ -237,7 +248,7 @@ export default function SignupPage() {
                     </label>
                     <input
                       type="text"
-                      required={asVulnerable}
+                      required
                       value={nokRelation}
                       onChange={(e) => setNokRelation(e.target.value)}
                       placeholder="Daughter"
@@ -250,7 +261,7 @@ export default function SignupPage() {
                     </label>
                     <input
                       type="text"
-                      required={asVulnerable}
+                      required
                       value={nokContact}
                       onChange={(e) => setNokContact(e.target.value)}
                       placeholder="+65 9xxx xxxx"
