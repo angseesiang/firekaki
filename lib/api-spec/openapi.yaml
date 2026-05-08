@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication and registration
 paths:
   /healthz:
     get:
@@ -24,6 +26,90 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /auth/signup:
+    post:
+      operationId: signup
+      tags: [auth]
+      summary: Sign up as Volunteer and/or Vulnerable
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignupRequest"
+      responses:
+        "200":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionUser"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Email already registered for the chosen role
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Log in to a specific role vault
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionUser"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Log out
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get the current session user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionUser"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +119,103 @@ components:
           type: string
       required:
         - status
-
+    OkResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+      required:
+        - ok
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+        - message
+    Role:
+      type: string
+      enum: [admin, reviewer, volunteer, vulnerable]
+    SignupRole:
+      type: string
+      enum: [volunteer, vulnerable]
+    VolunteerProfileInput:
+      type: object
+      properties:
+        skills:
+          type: string
+        gpsConsent:
+          type: boolean
+      required:
+        - gpsConsent
+    VulnerableProfileInput:
+      type: object
+      properties:
+        address:
+          type: string
+        nokName:
+          type: string
+        nokRelation:
+          type: string
+        nokContact:
+          type: string
+      required:
+        - address
+        - nokName
+        - nokRelation
+        - nokContact
+    SignupRequest:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+          minLength: 8
+        name:
+          type: string
+        roles:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/SignupRole"
+        volunteer:
+          $ref: "#/components/schemas/VolunteerProfileInput"
+        vulnerable:
+          $ref: "#/components/schemas/VulnerableProfileInput"
+      required:
+        - email
+        - password
+        - name
+        - roles
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+        role:
+          $ref: "#/components/schemas/Role"
+      required:
+        - email
+        - password
+        - role
+    SessionUser:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        name:
+          type: string
+        role:
+          $ref: "#/components/schemas/Role"
+        verified:
+          type: boolean
+      required:
+        - id
+        - email
+        - name
+        - role

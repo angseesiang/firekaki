@@ -14,3 +14,72 @@ import * as zod from "zod";
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * @summary Sign up as Volunteer and/or Vulnerable
+ */
+export const signupBodyPasswordMin = 8;
+
+export const SignupBody = zod.object({
+  email: zod.string(),
+  password: zod.string().min(signupBodyPasswordMin),
+  name: zod.string(),
+  roles: zod.array(zod.enum(["volunteer", "vulnerable"])).min(1),
+  volunteer: zod
+    .object({
+      skills: zod.string().optional(),
+      gpsConsent: zod.boolean(),
+    })
+    .optional(),
+  vulnerable: zod
+    .object({
+      address: zod.string(),
+      nokName: zod.string(),
+      nokRelation: zod.string(),
+      nokContact: zod.string(),
+    })
+    .optional(),
+});
+
+export const SignupResponse = zod.object({
+  id: zod.number(),
+  email: zod.string(),
+  name: zod.string(),
+  role: zod.enum(["admin", "reviewer", "volunteer", "vulnerable"]),
+  verified: zod.boolean().optional(),
+});
+
+/**
+ * @summary Log in to a specific role vault
+ */
+export const LoginBody = zod.object({
+  email: zod.string(),
+  password: zod.string(),
+  role: zod.enum(["admin", "reviewer", "volunteer", "vulnerable"]),
+});
+
+export const LoginResponse = zod.object({
+  id: zod.number(),
+  email: zod.string(),
+  name: zod.string(),
+  role: zod.enum(["admin", "reviewer", "volunteer", "vulnerable"]),
+  verified: zod.boolean().optional(),
+});
+
+/**
+ * @summary Log out
+ */
+export const LogoutResponse = zod.object({
+  ok: zod.boolean(),
+});
+
+/**
+ * @summary Get the current session user
+ */
+export const GetMeResponse = zod.object({
+  id: zod.number(),
+  email: zod.string(),
+  name: zod.string(),
+  role: zod.enum(["admin", "reviewer", "volunteer", "vulnerable"]),
+  verified: zod.boolean().optional(),
+});

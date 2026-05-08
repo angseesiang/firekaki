@@ -74,6 +74,8 @@ function Navbar() {
           {navLinks.map(link => (
             <a key={link.name} href={link.href} className="hover:text-primary transition-colors">{link.name}</a>
           ))}
+          <a href="/login" className="hover:text-primary transition-colors">Sign in</a>
+          <a href="/signup" className="px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity">Sign up</a>
         </nav>
         <div className="md:hidden">
           <button onClick={() => setMobileOpen(!mobileOpen)} className="p-2 text-foreground">

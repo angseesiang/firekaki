@@ -8,3 +8,64 @@
 export interface HealthStatus {
   status: string;
 }
+
+export interface OkResponse {
+  ok: boolean;
+}
+
+export interface ErrorResponse {
+  message: string;
+}
+
+export type Role = (typeof Role)[keyof typeof Role];
+
+export const Role = {
+  admin: "admin",
+  reviewer: "reviewer",
+  volunteer: "volunteer",
+  vulnerable: "vulnerable",
+} as const;
+
+export type SignupRole = (typeof SignupRole)[keyof typeof SignupRole];
+
+export const SignupRole = {
+  volunteer: "volunteer",
+  vulnerable: "vulnerable",
+} as const;
+
+export interface VolunteerProfileInput {
+  skills?: string;
+  gpsConsent: boolean;
+}
+
+export interface VulnerableProfileInput {
+  address: string;
+  nokName: string;
+  nokRelation: string;
+  nokContact: string;
+}
+
+export interface SignupRequest {
+  email: string;
+  /** @minLength 8 */
+  password: string;
+  name: string;
+  /** @minItems 1 */
+  roles: SignupRole[];
+  volunteer?: VolunteerProfileInput;
+  vulnerable?: VulnerableProfileInput;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+  role: Role;
+}
+
+export interface SessionUser {
+  id: number;
+  email: string;
+  name: string;
+  role: Role;
+  verified?: boolean;
+}
