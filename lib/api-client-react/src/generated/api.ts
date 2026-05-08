@@ -19,6 +19,7 @@ import type {
 import type {
   AdminCreateUserRequest,
   AdminCreatedUser,
+  AdminUsersOverview,
   CreateEmergencyRequest,
   EmailVerified,
   Emergency,
@@ -29,6 +30,7 @@ import type {
   OkResponse,
   PendingVulnerableList,
   RespondEmergencyRequest,
+  Role,
   SessionUser,
   SignupRequest,
   UpdateLocationRequest,
@@ -1208,6 +1210,336 @@ export const useUpdateVolunteerLocation = <
   TContext
 > => {
   return useMutation(getUpdateVolunteerLocationMutationOptions(options));
+};
+
+/**
+ * @summary Admin — list every user across all four vaults
+ */
+export const getAdminListAllUsersUrl = () => {
+  return `/api/admin/users-overview`;
+};
+
+export const adminListAllUsers = async (
+  options?: RequestInit,
+): Promise<AdminUsersOverview> => {
+  return customFetch<AdminUsersOverview>(getAdminListAllUsersUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getAdminListAllUsersQueryKey = () => {
+  return [`/api/admin/users-overview`] as const;
+};
+
+export const getAdminListAllUsersQueryOptions = <
+  TData = Awaited<ReturnType<typeof adminListAllUsers>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof adminListAllUsers>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getAdminListAllUsersQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof adminListAllUsers>>
+  > = ({ signal }) => adminListAllUsers({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof adminListAllUsers>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type AdminListAllUsersQueryResult = NonNullable<
+  Awaited<ReturnType<typeof adminListAllUsers>>
+>;
+export type AdminListAllUsersQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Admin — list every user across all four vaults
+ */
+
+export function useAdminListAllUsers<
+  TData = Awaited<ReturnType<typeof adminListAllUsers>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof adminListAllUsers>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getAdminListAllUsersQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Admin — disable a user (cannot sign in until enabled)
+ */
+export const getAdminDisableUserUrl = (role: Role, id: number) => {
+  return `/api/admin/users/${role}/${id}/disable`;
+};
+
+export const adminDisableUser = async (
+  role: Role,
+  id: number,
+  options?: RequestInit,
+): Promise<OkResponse> => {
+  return customFetch<OkResponse>(getAdminDisableUserUrl(role, id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getAdminDisableUserMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminDisableUser>>,
+    TError,
+    { role: Role; id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof adminDisableUser>>,
+  TError,
+  { role: Role; id: number },
+  TContext
+> => {
+  const mutationKey = ["adminDisableUser"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof adminDisableUser>>,
+    { role: Role; id: number }
+  > = (props) => {
+    const { role, id } = props ?? {};
+
+    return adminDisableUser(role, id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AdminDisableUserMutationResult = NonNullable<
+  Awaited<ReturnType<typeof adminDisableUser>>
+>;
+
+export type AdminDisableUserMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Admin — disable a user (cannot sign in until enabled)
+ */
+export const useAdminDisableUser = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminDisableUser>>,
+    TError,
+    { role: Role; id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof adminDisableUser>>,
+  TError,
+  { role: Role; id: number },
+  TContext
+> => {
+  return useMutation(getAdminDisableUserMutationOptions(options));
+};
+
+/**
+ * @summary Admin — re-enable a previously disabled user
+ */
+export const getAdminEnableUserUrl = (role: Role, id: number) => {
+  return `/api/admin/users/${role}/${id}/enable`;
+};
+
+export const adminEnableUser = async (
+  role: Role,
+  id: number,
+  options?: RequestInit,
+): Promise<OkResponse> => {
+  return customFetch<OkResponse>(getAdminEnableUserUrl(role, id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getAdminEnableUserMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminEnableUser>>,
+    TError,
+    { role: Role; id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof adminEnableUser>>,
+  TError,
+  { role: Role; id: number },
+  TContext
+> => {
+  const mutationKey = ["adminEnableUser"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof adminEnableUser>>,
+    { role: Role; id: number }
+  > = (props) => {
+    const { role, id } = props ?? {};
+
+    return adminEnableUser(role, id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AdminEnableUserMutationResult = NonNullable<
+  Awaited<ReturnType<typeof adminEnableUser>>
+>;
+
+export type AdminEnableUserMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Admin — re-enable a previously disabled user
+ */
+export const useAdminEnableUser = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminEnableUser>>,
+    TError,
+    { role: Role; id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof adminEnableUser>>,
+  TError,
+  { role: Role; id: number },
+  TContext
+> => {
+  return useMutation(getAdminEnableUserMutationOptions(options));
+};
+
+/**
+ * @summary Admin — permanently remove a user from their vault
+ */
+export const getAdminDeleteUserUrl = (role: Role, id: number) => {
+  return `/api/admin/users/${role}/${id}`;
+};
+
+export const adminDeleteUser = async (
+  role: Role,
+  id: number,
+  options?: RequestInit,
+): Promise<OkResponse> => {
+  return customFetch<OkResponse>(getAdminDeleteUserUrl(role, id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getAdminDeleteUserMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminDeleteUser>>,
+    TError,
+    { role: Role; id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof adminDeleteUser>>,
+  TError,
+  { role: Role; id: number },
+  TContext
+> => {
+  const mutationKey = ["adminDeleteUser"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof adminDeleteUser>>,
+    { role: Role; id: number }
+  > = (props) => {
+    const { role, id } = props ?? {};
+
+    return adminDeleteUser(role, id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AdminDeleteUserMutationResult = NonNullable<
+  Awaited<ReturnType<typeof adminDeleteUser>>
+>;
+
+export type AdminDeleteUserMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Admin — permanently remove a user from their vault
+ */
+export const useAdminDeleteUser = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminDeleteUser>>,
+    TError,
+    { role: Role; id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof adminDeleteUser>>,
+  TError,
+  { role: Role; id: number },
+  TContext
+> => {
+  return useMutation(getAdminDeleteUserMutationOptions(options));
 };
 
 /**

@@ -98,6 +98,55 @@ export interface AdminCreatedUser {
   role: AdminRole;
 }
 
+export interface AdminListAdmin {
+  id: number;
+  email: string;
+  name: string;
+  disabled: boolean;
+  createdAt: string;
+}
+
+export interface AdminListReviewer {
+  id: number;
+  email: string;
+  name: string;
+  disabled: boolean;
+  createdAt: string;
+}
+
+export interface AdminListVolunteer {
+  id: number;
+  email: string;
+  name: string;
+  disabled: boolean;
+  skills?: string | null;
+  gpsConsent: boolean;
+  emailVerified: boolean;
+  lastSeenAt?: string | null;
+  createdAt: string;
+}
+
+export interface AdminListVulnerable {
+  id: number;
+  email: string;
+  name: string;
+  disabled: boolean;
+  verified: boolean;
+  emailVerified: boolean;
+  address: string;
+  nokName: string;
+  nokRelation: string;
+  nokContact: string;
+  createdAt: string;
+}
+
+export interface AdminUsersOverview {
+  admins: AdminListAdmin[];
+  reviewers: AdminListReviewer[];
+  volunteers: AdminListVolunteer[];
+  vulnerables: AdminListVulnerable[];
+}
+
 export type EmergencyType = (typeof EmergencyType)[keyof typeof EmergencyType];
 
 export const EmergencyType = {

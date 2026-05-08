@@ -1,20 +1,38 @@
-import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
+import { Router, type IRouter } from "express";
 import bcrypt from "bcryptjs";
-import { eq } from "drizzle-orm";
-import { db, adminUsers, reviewerUsers } from "@workspace/db";
-import { AdminCreateUserBody, AdminCreateUserResponse } from "@workspace/api-zod";
+import { eq, ne, desc } from "drizzle-orm";
+import {
+  db,
+  adminUsers,
+  reviewerUsers,
+  volunteerUsers,
+  vulnerableUsers,
+} from "@workspace/db";
+import {
+  AdminCreateUserBody,
+  AdminCreateUserResponse,
+} from "@workspace/api-zod";
+import { requireAdmin, sendError } from "../lib/middleware";
 
 const router: IRouter = Router();
 
-function sendError(res: Response, status: number, message: string) {
-  res.status(status).json({ message });
+type Role = "admin" | "reviewer" | "volunteer" | "vulnerable";
+
+function tableForRole(role: Role) {
+  switch (role) {
+    case "admin":
+      return adminUsers;
+    case "reviewer":
+      return reviewerUsers;
+    case "volunteer":
+      return volunteerUsers;
+    case "vulnerable":
+      return vulnerableUsers;
+  }
 }
 
-function requireAdmin(req: Request, res: Response, next: NextFunction) {
-  const u = req.session.user;
-  if (!u) return sendError(res, 401, "Not authenticated");
-  if (u.role !== "admin") return sendError(res, 403, "Admin role required");
-  next();
+function isRole(s: string): s is Role {
+  return s === "admin" || s === "reviewer" || s === "volunteer" || s === "vulnerable";
 }
 
 router.post("/admin/users", requireAdmin, async (req, res) => {
@@ -68,6 +86,145 @@ router.post("/admin/users", requireAdmin, async (req, res) => {
     }
     req.log.error({ err }, "admin create user failed");
     sendError(res, 500, "Could not create user");
+  }
+});
+
+router.get("/admin/users-overview", requireAdmin, async (req, res) => {
+  try {
+    const [admins, reviewers, volunteers, vulnerables] = await Promise.all([
+      db.select().from(adminUsers).orderBy(desc(adminUsers.createdAt)),
+      db.select().from(reviewerUsers).orderBy(desc(reviewerUsers.createdAt)),
+      db.select().from(volunteerUsers).orderBy(desc(volunteerUsers.createdAt)),
+      db.select().from(vulnerableUsers).orderBy(desc(vulnerableUsers.createdAt)),
+    ]);
+    res.json({
+      admins: admins.map((a) => ({
+        id: a.id,
+        email: a.email,
+        name: a.name,
+        disabled: a.disabled,
+        createdAt: a.createdAt.toISOString(),
+      })),
+      reviewers: reviewers.map((r) => ({
+        id: r.id,
+        email: r.email,
+        name: r.name,
+        disabled: r.disabled,
+        createdAt: r.createdAt.toISOString(),
+      })),
+      volunteers: volunteers.map((v) => ({
+        id: v.id,
+        email: v.email,
+        name: v.name,
+        disabled: v.disabled,
+        skills: v.skills,
+        gpsConsent: v.gpsConsent,
+        emailVerified: v.emailVerifiedAt != null,
+        lastSeenAt: v.lastSeenAt ? v.lastSeenAt.toISOString() : null,
+        createdAt: v.createdAt.toISOString(),
+      })),
+      vulnerables: vulnerables.map((v) => ({
+        id: v.id,
+        email: v.email,
+        name: v.name,
+        disabled: v.disabled,
+        verified: v.verified,
+        emailVerified: v.emailVerifiedAt != null,
+        address: v.address,
+        nokName: v.nokName,
+        nokRelation: v.nokRelation,
+        nokContact: v.nokContact,
+        createdAt: v.createdAt.toISOString(),
+      })),
+    });
+  } catch (err) {
+    req.log.error({ err }, "admin list users failed");
+    sendError(res, 500, "Could not list users");
+  }
+});
+
+async function setDisabled(
+  role: Role,
+  id: number,
+  disabled: boolean,
+): Promise<boolean> {
+  const t = tableForRole(role);
+  const updated = await db
+    .update(t)
+    .set({ disabled })
+    .where(eq(t.id, id))
+    .returning({ id: t.id });
+  return updated.length > 0;
+}
+
+router.post("/admin/users/:role/:id/disable", requireAdmin, async (req, res) => {
+  const u = req.session.user!;
+  const role = String(req.params.role ?? "");
+  const idStr = String(req.params.id ?? "");
+  if (!isRole(role)) return sendError(res, 400, "Invalid role");
+  const id = Number(idStr);
+  if (!Number.isInteger(id)) return sendError(res, 400, "Invalid id");
+  if (role === "admin" && id === u.id) {
+    return sendError(res, 400, "You cannot disable your own admin account");
+  }
+  try {
+    const ok = await setDisabled(role, id, true);
+    if (!ok) return sendError(res, 404, "User not found");
+    res.json({ ok: true });
+  } catch (err) {
+    req.log.error({ err }, "disable user failed");
+    sendError(res, 500, "Could not disable user");
+  }
+});
+
+router.post("/admin/users/:role/:id/enable", requireAdmin, async (req, res) => {
+  const role = String(req.params.role ?? "");
+  const idStr = String(req.params.id ?? "");
+  if (!isRole(role)) return sendError(res, 400, "Invalid role");
+  const id = Number(idStr);
+  if (!Number.isInteger(id)) return sendError(res, 400, "Invalid id");
+  try {
+    const ok = await setDisabled(role, id, false);
+    if (!ok) return sendError(res, 404, "User not found");
+    res.json({ ok: true });
+  } catch (err) {
+    req.log.error({ err }, "enable user failed");
+    sendError(res, 500, "Could not enable user");
+  }
+});
+
+router.delete("/admin/users/:role/:id", requireAdmin, async (req, res) => {
+  const u = req.session.user!;
+  const role = String(req.params.role ?? "");
+  const idStr = String(req.params.id ?? "");
+  if (!isRole(role)) return sendError(res, 400, "Invalid role");
+  const id = Number(idStr);
+  if (!Number.isInteger(id)) return sendError(res, 400, "Invalid id");
+  if (role === "admin" && id === u.id) {
+    return sendError(res, 400, "You cannot delete your own admin account");
+  }
+  if (role === "admin") {
+    // protect against deleting the last admin
+    const others = await db
+      .select({ id: adminUsers.id })
+      .from(adminUsers)
+      .where(ne(adminUsers.id, id))
+      .limit(1);
+    if (others.length === 0) {
+      return sendError(res, 400, "Cannot delete the last remaining admin");
+    }
+  }
+  try {
+    const t = tableForRole(role);
+    const deleted = await db
+      .delete(t)
+      .where(eq(t.id, id))
+      .returning({ id: t.id });
+    if (deleted.length === 0) return sendError(res, 404, "User not found");
+    res.json({ ok: true });
+  } catch (err) {
+    req.log.error({ err }, "delete user failed");
+    sendError(res, 500, "Could not delete user");
   }
 });
 

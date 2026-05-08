@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useLocation } from "wouter";
 import {
   Flame,
@@ -25,6 +25,7 @@ import {
   type PendingVulnerable,
 } from "@workspace/api-client-react";
 import { useMe, useLogout, useResendVerification } from "@/lib/auth";
+import { useToast } from "@/hooks/use-toast";
 
 const EMERGENCIES_KEY = ["/api/emergencies"] as const;
 const PENDING_KEY = ["/api/reviewer/pending-vulnerable"] as const;
@@ -90,6 +91,8 @@ export default function DashboardPage() {
         </div>
 
         <EmailVerificationBanner />
+
+        {isReviewerOrHigher && <EmergencyNotifier userId={u.id} />}
 
         {isVulnerable && <VulnerablePanel verified={u.verified ?? false} />}
         {isVolunteer && <VolunteerPanel />}
@@ -646,6 +649,91 @@ function ActivateMajorCard() {
         </button>
       </form>
     </section>
+  );
+}
+
+/* ─────────── Emergency notifier (Reviewer + Admin) ─────────── */
+
+function EmergencyNotifier({ userId }: { userId: number }) {
+  const { toast } = useToast();
+  const seenRef = useRef<{ ready: boolean; ids: Set<number> }>({
+    ready: false,
+    ids: new Set(),
+  });
+  const storageKey = `firekaki:lastSeenEmergencyId:${userId}`;
+  const [permission, setPermission] = useState<NotificationPermission | "unsupported">(
+    typeof Notification === "undefined" ? "unsupported" : Notification.permission,
+  );
+
+  const list = useQuery({
+    queryKey: EMERGENCIES_KEY,
+    queryFn: () => listEmergencies({ credentials: "include" }),
+    refetchInterval: 8_000,
+  });
+
+  useEffect(() => {
+    const data = list.data?.emergencies;
+    if (!data) return;
+    const lastSeen = Number(localStorage.getItem(storageKey) ?? "0");
+    if (!seenRef.current.ready) {
+      // first load — record everything we've already seen, never alert on backlog
+      data.forEach((e) => seenRef.current.ids.add(e.id));
+      const maxId = data.reduce((m, e) => Math.max(m, e.id), lastSeen);
+      localStorage.setItem(storageKey, String(maxId));
+      seenRef.current.ready = true;
+      return;
+    }
+    const fresh = data.filter(
+      (e) =>
+        e.status === "active" &&
+        !seenRef.current.ids.has(e.id) &&
+        e.id > lastSeen,
+    );
+    if (fresh.length === 0) return;
+    fresh.forEach((e) => {
+      seenRef.current.ids.add(e.id);
+      const title = `${e.type === "major" ? "MAJOR" : "Minor"} emergency from ${e.creatorName}`;
+      const body = e.description ?? `${e.creatorRole} requested help`;
+      toast({
+        title,
+        description: body,
+        variant: e.type === "major" ? "destructive" : undefined,
+      });
+      if (
+        typeof Notification !== "undefined" &&
+        Notification.permission === "granted"
+      ) {
+        try {
+          new Notification(title, { body, tag: `firekaki-emergency-${e.id}` });
+        } catch {
+          // ignore
+        }
+      }
+    });
+    const maxId = data.reduce((m, e) => Math.max(m, e.id), lastSeen);
+    localStorage.setItem(storageKey, String(maxId));
+  }, [list.data, storageKey, toast]);
+
+  if (permission === "unsupported" || permission === "granted") return null;
+
+  return (
+    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3 text-sm">
+      <span className="text-blue-900">
+        Enable browser notifications to be paged for new emergencies even when this tab is in the
+        background.
+      </span>
+      <button
+        onClick={async () => {
+          if (typeof Notification === "undefined") return;
+          const r = await Notification.requestPermission();
+          setPermission(r);
+        }}
+        disabled={permission === "denied"}
+        className="text-xs font-semibold bg-blue-600 text-white rounded-md px-3 py-1.5 hover:bg-blue-700 disabled:opacity-60"
+      >
+        {permission === "denied" ? "Blocked in browser" : "Enable notifications"}
+      </button>
+    </div>
   );
 }
 

@@ -37,6 +37,7 @@ A neighbour-powered first-response network for Singapore's most vulnerable — p
 - Each role gets its own isolated "vault" table — `admin_users`, `reviewer_users`, `volunteer_users`, `vulnerable_users` — so the same email can register independently as Volunteer and Vulnerable. Login requires a role to disambiguate.
 - Sessions are stored in Postgres via `connect-pg-simple` (table `session`, auto-created on first run) so they survive restarts.
 - Volunteer and Vulnerable signups require email verification: a one-time 32-byte token (24h TTL) is stored on the row and a Resend email links to `/verify?token=…&role=…`. `email_verified_at` flags successful verification; the session carries `emailVerified: boolean` so the dashboard can show a banner with a "Resend" button (`POST /api/auth/resend-verification`). Reviewer/Admin accounts are admin-created so no email check is required.
+- All four user vaults carry a `disabled BOOLEAN` flag. `/api/auth/login` rejects disabled accounts with 403 before issuing a session. Admin manages it via `POST /api/admin/users/{role}/{id}/disable|enable` and `DELETE /api/admin/users/{role}/{id}` — list everything via `GET /api/admin/users-overview`.
 - Reviewer and Admin accounts are not self-registerable. Bootstrap the first Admin with `pnpm --filter @workspace/scripts run seed-admin` (env vars `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME`, or positional args). Once signed in as Admin, use `/admin` to create more Reviewer or Admin accounts (POST `/api/admin/users`, gated by `requireAdmin` middleware).
 
 ## Product
@@ -45,7 +46,8 @@ A neighbour-powered first-response network for Singapore's most vulnerable — p
 - `/signup` — register as Volunteer and/or Vulnerable (creates a row in each chosen vault)
 - `/login` — sign in with email + password + role
 - `/dashboard` — post-login landing showing role, vault, and verification status
-- `/admin` — Admin-only page to create Reviewer or Admin accounts
+- `/admin` — Admin-only "Manage users" page: create Reviewer/Admin, plus 4-tab table (Admins/Reviewers/Volunteers/Vulnerable) with Disable / Enable / Delete per row. Self-protect: an admin cannot disable or delete themselves, and the last remaining admin cannot be deleted.
+- Reviewer + Admin dashboards include an `EmergencyNotifier` that polls `/emergencies` (8 s) and fires a toast (and a browser `Notification` if permission granted) for every new active emergency, with a "Enable notifications" prompt and `localStorage` deduping on `firekaki:lastSeenEmergencyId:<userId>`. Initial backlog never alerts.
 - `/dashboard` renders role-tiered panels (inheritance: Admin ⊃ Reviewer ⊃ {Volunteer, Vulnerable}; Volunteer is standalone). Vulnerable → request Minor + own history. Volunteer → GPS share + nearby (≤2 km) active emergencies + accept/decline. Reviewer → pending verifications + activate Major + see all emergencies (read-only). Admin → same as Reviewer + deactivate emergencies + Manage users link.
 
 ## Emergency model

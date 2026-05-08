@@ -379,6 +379,141 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /admin/users-overview:
+    get:
+      operationId: adminListAllUsers
+      tags: [auth]
+      summary: Admin — list every user across all four vaults
+      responses:
+        "200":
+          description: All users
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUsersOverview"
+        "403":
+          description: Admin role required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /admin/users/{role}/{id}/disable:
+    post:
+      operationId: adminDisableUser
+      tags: [auth]
+      summary: Admin — disable a user (cannot sign in until enabled)
+      parameters:
+        - in: path
+          name: role
+          required: true
+          schema:
+            $ref: "#/components/schemas/Role"
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Disabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "400":
+          description: Cannot disable yourself
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Admin role required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /admin/users/{role}/{id}/enable:
+    post:
+      operationId: adminEnableUser
+      tags: [auth]
+      summary: Admin — re-enable a previously disabled user
+      parameters:
+        - in: path
+          name: role
+          required: true
+          schema:
+            $ref: "#/components/schemas/Role"
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Enabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "403":
+          description: Admin role required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /admin/users/{role}/{id}:
+    delete:
+      operationId: adminDeleteUser
+      tags: [auth]
+      summary: Admin — permanently remove a user from their vault
+      parameters:
+        - in: path
+          name: role
+          required: true
+          schema:
+            $ref: "#/components/schemas/Role"
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "400":
+          description: Cannot delete yourself or last remaining admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Admin role required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /auth/me:
     get:
       operationId: getMe
@@ -537,6 +672,120 @@ components:
         - email
         - name
         - role
+    AdminListAdmin:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        name:
+          type: string
+        disabled:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, email, name, disabled, createdAt]
+    AdminListReviewer:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        name:
+          type: string
+        disabled:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, email, name, disabled, createdAt]
+    AdminListVolunteer:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        name:
+          type: string
+        disabled:
+          type: boolean
+        skills:
+          type: string
+          nullable: true
+        gpsConsent:
+          type: boolean
+        emailVerified:
+          type: boolean
+        lastSeenAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, email, name, disabled, gpsConsent, emailVerified, createdAt]
+    AdminListVulnerable:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        name:
+          type: string
+        disabled:
+          type: boolean
+        verified:
+          type: boolean
+        emailVerified:
+          type: boolean
+        address:
+          type: string
+        nokName:
+          type: string
+        nokRelation:
+          type: string
+        nokContact:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - email
+        - name
+        - disabled
+        - verified
+        - emailVerified
+        - address
+        - nokName
+        - nokRelation
+        - nokContact
+        - createdAt
+    AdminUsersOverview:
+      type: object
+      properties:
+        admins:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminListAdmin"
+        reviewers:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminListReviewer"
+        volunteers:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminListVolunteer"
+        vulnerables:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminListVulnerable"
+      required: [admins, reviewers, volunteers, vulnerables]
     EmergencyType:
       type: string
       enum: [minor, major]

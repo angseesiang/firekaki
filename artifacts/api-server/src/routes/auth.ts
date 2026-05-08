@@ -369,6 +369,13 @@ router.post("/auth/login", async (req, res) => {
   if (!matched) return sendError(res, 401, "Invalid email or password");
 
   const { user, role } = matched;
+  if ((user as unknown as { disabled?: boolean }).disabled) {
+    return sendError(
+      res,
+      403,
+      "This account has been disabled. Contact an administrator.",
+    );
+  }
   const verified =
     role === "vulnerable" ? (user as unknown as { verified: boolean }).verified : undefined;
   const emailVerified =

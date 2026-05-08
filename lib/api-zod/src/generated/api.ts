@@ -264,6 +264,94 @@ export const UpdateVolunteerLocationResponse = zod.object({
 });
 
 /**
+ * @summary Admin — list every user across all four vaults
+ */
+export const AdminListAllUsersResponse = zod.object({
+  admins: zod.array(
+    zod.object({
+      id: zod.number(),
+      email: zod.string(),
+      name: zod.string(),
+      disabled: zod.boolean(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+  reviewers: zod.array(
+    zod.object({
+      id: zod.number(),
+      email: zod.string(),
+      name: zod.string(),
+      disabled: zod.boolean(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+  volunteers: zod.array(
+    zod.object({
+      id: zod.number(),
+      email: zod.string(),
+      name: zod.string(),
+      disabled: zod.boolean(),
+      skills: zod.string().nullish(),
+      gpsConsent: zod.boolean(),
+      emailVerified: zod.boolean(),
+      lastSeenAt: zod.coerce.date().nullish(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+  vulnerables: zod.array(
+    zod.object({
+      id: zod.number(),
+      email: zod.string(),
+      name: zod.string(),
+      disabled: zod.boolean(),
+      verified: zod.boolean(),
+      emailVerified: zod.boolean(),
+      address: zod.string(),
+      nokName: zod.string(),
+      nokRelation: zod.string(),
+      nokContact: zod.string(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+});
+
+/**
+ * @summary Admin — disable a user (cannot sign in until enabled)
+ */
+export const AdminDisableUserParams = zod.object({
+  role: zod.enum(["admin", "reviewer", "volunteer", "vulnerable"]),
+  id: zod.coerce.number(),
+});
+
+export const AdminDisableUserResponse = zod.object({
+  ok: zod.boolean(),
+});
+
+/**
+ * @summary Admin — re-enable a previously disabled user
+ */
+export const AdminEnableUserParams = zod.object({
+  role: zod.enum(["admin", "reviewer", "volunteer", "vulnerable"]),
+  id: zod.coerce.number(),
+});
+
+export const AdminEnableUserResponse = zod.object({
+  ok: zod.boolean(),
+});
+
+/**
+ * @summary Admin — permanently remove a user from their vault
+ */
+export const AdminDeleteUserParams = zod.object({
+  role: zod.enum(["admin", "reviewer", "volunteer", "vulnerable"]),
+  id: zod.coerce.number(),
+});
+
+export const AdminDeleteUserResponse = zod.object({
+  ok: zod.boolean(),
+});
+
+/**
  * @summary Get the current session user
  */
 export const GetMeResponse = zod.object({
