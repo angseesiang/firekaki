@@ -445,7 +445,7 @@ function VulnerablePanel({ name, verified }: { name: string; verified: boolean }
         <button
           type="button"
           onClick={onSos}
-          disabled={create.isPending || !verified}
+          disabled={create.isPending || !verified || !!activeEmergency}
           aria-label="Send SOS"
           className="w-56 h-56 rounded-full bg-[hsl(var(--primary))] text-white shadow-xl hover:opacity-90 active:scale-95 transition disabled:opacity-60 disabled:active:scale-100 flex flex-col items-center justify-center gap-2"
         >

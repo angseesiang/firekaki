@@ -133,6 +133,26 @@ router.post("/emergencies", requireAuth, async (req, res) => {
     if (!v[0].emailVerifiedAt) {
       return sendError(res, 403, "Please verify your email before requesting help.");
     }
+
+    // Idempotent SOS: a Vulnerable can only have one active emergency at a
+    // time. Repeated presses while one is still active just return the
+    // existing row instead of creating duplicates. Once it's been deactivated
+    // (or resolved), the next press will create a new one.
+    const existingActive = await db
+      .select()
+      .from(emergencies)
+      .where(
+        and(
+          eq(emergencies.creatorUserId, u.id),
+          eq(emergencies.creatorRole, "vulnerable"),
+          eq(emergencies.status, "active"),
+        ),
+      )
+      .orderBy(desc(emergencies.createdAt))
+      .limit(1);
+    if (existingActive[0]) {
+      return res.json(serialize(existingActive[0]));
+    }
   }
 
   try {
