@@ -128,7 +128,7 @@ function PointMarker({ point }: { point: MapPoint }) {
         return { bg: "#16a34a", border: "#14532d", glyph: "#fff" };
       case "self":
       default:
-        return { bg: "#1e293b", border: "#0f172a", glyph: "#fff" };
+        return { bg: "#2563eb", border: "#1e3a8a", glyph: "#fff" };
     }
   })();
 
