@@ -124,9 +124,10 @@ export function EmergencyMap({
   return (
     <APIProvider apiKey={API_KEY}>
       <div
-        className="rounded-xl overflow-hidden border border-stone-200"
+        className="relative rounded-xl overflow-hidden border border-stone-200"
         style={{ height }}
       >
+        <MapLegend />
         <Map
           mapId="firekaki-map"
           defaultCenter={center}
@@ -158,6 +159,37 @@ export function EmergencyMap({
         </Map>
       </div>
     </APIProvider>
+  );
+}
+
+function MapLegend() {
+  const items: Array<{ color: string; border: string; label: string }> = [
+    { color: "#cf3517", border: "#7a1d09", label: "Major emergency" },
+    { color: "#f59e0b", border: "#92400e", label: "Minor emergency" },
+    { color: "#2563eb", border: "#1e3a8a", label: "Volunteer" },
+  ];
+  return (
+    <div className="absolute top-2 left-2 z-10 bg-white/95 backdrop-blur-sm rounded-lg border border-stone-200 shadow-sm px-3 py-2 text-xs">
+      <p className="font-semibold text-stone-700 mb-1">Map legend</p>
+      <ul className="space-y-1">
+        {items.map((it) => (
+          <li key={it.label} className="flex items-center gap-2">
+            <span
+              style={{
+                width: 12,
+                height: 12,
+                borderRadius: "50% 50% 50% 0",
+                transform: "rotate(-45deg)",
+                background: it.color,
+                border: `2px solid ${it.border}`,
+                display: "inline-block",
+              }}
+            />
+            <span className="text-stone-700">{it.label}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
