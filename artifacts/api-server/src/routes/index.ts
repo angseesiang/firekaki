@@ -7,6 +7,7 @@ import reviewerRouter from "./reviewer";
 import volunteerRouter from "./volunteer";
 import vulnerableRouter from "./vulnerable";
 import nokRouter from "./nok";
+import newsRouter from "./news";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,6 @@ router.use(reviewerRouter);
 router.use(volunteerRouter);
 router.use(vulnerableRouter);
 router.use(nokRouter);
+router.use(newsRouter);
 
 export default router;
