@@ -1011,7 +1011,7 @@ function Footer() {
           <p>Community Safety Network Proposal</p>
         </div>
         <div className="text-left md:text-right space-y-2">
-          <p className="text-foreground">Author: Ang See Siang · May 2026</p>
+          <p className="text-foreground">Authors: Ang See Siang, Volodymyr Iermolaiev · May 2026</p>
           <p className="text-xs opacity-80 uppercase tracking-widest pt-2 border-t border-border/50">Inspired by the Jalan Besar Fire Safety Kakis</p>
         </div>
       </div>
