@@ -99,11 +99,16 @@ router.post("/emergencies", requireAuth, async (req, res) => {
   }
   const { type, description, lat, lng, address } = parsed.data;
 
-  if (type === "minor" && u.role !== "vulnerable") {
+  if (
+    type === "minor" &&
+    u.role !== "vulnerable" &&
+    u.role !== "reviewer" &&
+    u.role !== "admin"
+  ) {
     return sendError(
       res,
       403,
-      "Only Vulnerable accounts can request a Minor emergency",
+      "Only Vulnerable, Reviewer or Admin accounts can request a Minor emergency",
     );
   }
   if (type === "major" && u.role !== "reviewer" && u.role !== "admin") {
@@ -113,7 +118,7 @@ router.post("/emergencies", requireAuth, async (req, res) => {
       "Only Reviewer or Admin can activate a Major emergency",
     );
   }
-  if (type === "minor") {
+  if (type === "minor" && u.role === "vulnerable") {
     const v = await db
       .select({
         verified: vulnerableUsers.verified,

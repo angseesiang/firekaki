@@ -14,6 +14,9 @@ import {
   CheckCircle2,
   PowerOff,
   Plus,
+  Loader2,
+  MapPin,
+  Siren,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -23,6 +26,7 @@ import {
   adminEnableUser,
   adminDeleteUser,
   listEmergencies,
+  createEmergency,
   deactivateEmergency,
   verifyVolunteer,
   verifyVulnerable,
@@ -190,7 +194,10 @@ function AdminContent({
   }
   if (section === "emergencies") {
     return (
-      <EmergenciesSection emergencies={emergencies} canDeactivate />
+      <div className="space-y-6">
+        <ActivateEmergencyCard />
+        <EmergenciesSection emergencies={emergencies} canDeactivate />
+      </div>
     );
   }
   return <StaffSection users={users} currentAdminId={currentAdminId} />;
@@ -560,6 +567,143 @@ function VulnerableSection({
         canVerify
       />
     </div>
+  );
+}
+
+/* ───────────── Activate emergency ───────────── */
+
+function ActivateEmergencyCard() {
+  const qc = useQueryClient();
+  const [type, setType] = useState<"major" | "minor">("major");
+  const [description, setDescription] = useState("");
+  const [address, setAddress] = useState("");
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [ok, setOk] = useState(false);
+
+  const create = useMutation({
+    mutationFn: () =>
+      createEmergency(
+        {
+          type,
+          description: description.trim() || undefined,
+          address: address.trim() || undefined,
+          lat: coords?.lat,
+          lng: coords?.lng,
+        },
+        { credentials: "include" },
+      ),
+    onSuccess: () => {
+      setDescription("");
+      setAddress("");
+      setCoords(null);
+      setOk(true);
+      qc.invalidateQueries({ queryKey: EMERG_KEY });
+    },
+  });
+
+  function shareLocation() {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition((pos) =>
+      setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+    );
+  }
+
+  function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    setErr(null);
+    setOk(false);
+    create.mutate(undefined, {
+      onError: (err) =>
+        setErr(
+          (err as { data?: { message?: string } })?.data?.message ??
+            `Could not activate ${type} emergency.`,
+        ),
+    });
+  }
+
+  return (
+    <section className="bg-white border-2 border-[hsl(var(--primary))]/30 rounded-2xl p-6 shadow-sm">
+      <SectionHeading
+        title="Activate emergency"
+        subtitle="Major pages every volunteer in the affected area. Minor is a quieter call-out — use for non-critical assistance."
+      />
+      <div className="flex gap-2 mb-4">
+        {(["major", "minor"] as const).map((t) => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => setType(t)}
+            className={`flex-1 px-4 py-2 rounded-lg border-2 text-sm font-semibold capitalize transition ${
+              type === t
+                ? "border-[hsl(var(--primary))] bg-[hsl(var(--primary))]/5 text-[hsl(var(--primary))]"
+                : "border-stone-200 text-stone-600 hover:border-stone-300"
+            }`}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+      <form onSubmit={onSubmit} className="space-y-4">
+        <textarea
+          required
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          rows={2}
+          placeholder={
+            type === "major"
+              ? "e.g. Block-wide kitchen fire reported at Blk 207 Jln Besar"
+              : "e.g. Elderly resident needs help getting up, no injuries"
+          }
+          className="w-full rounded-lg border border-stone-200 px-3 py-2 focus:outline-none focus:border-[hsl(var(--primary))]"
+        />
+        <input
+          type="text"
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+          placeholder="Address (optional)"
+          className="w-full rounded-lg border border-stone-200 px-3 py-2 focus:outline-none focus:border-[hsl(var(--primary))]"
+        />
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={shareLocation}
+            className="inline-flex items-center gap-2 text-sm border border-stone-300 rounded-lg px-3 py-2 hover:bg-stone-50"
+          >
+            <MapPin className="w-4 h-4" />
+            {coords ? "Update GPS" : "Pin GPS"}
+          </button>
+          {coords && (
+            <span className="text-xs text-stone-600 font-mono">
+              {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
+            </span>
+          )}
+        </div>
+        {err && (
+          <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+            {err}
+          </p>
+        )}
+        {ok && (
+          <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2 flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4" />
+            {type === "major" ? "Major" : "Minor"} emergency activated and broadcast.
+          </p>
+        )}
+        <button
+          type="submit"
+          disabled={create.isPending}
+          className="inline-flex items-center gap-2 bg-[hsl(var(--primary))] text-white rounded-lg px-5 py-2.5 font-semibold hover:opacity-90 disabled:opacity-60"
+        >
+          {create.isPending ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Siren className="w-4 h-4" />
+          )}
+          Activate {type === "major" ? "Major" : "Minor"}
+        </button>
+      </form>
+    </section>
   );
 }
 

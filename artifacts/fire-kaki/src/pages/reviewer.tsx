@@ -708,6 +708,7 @@ function EmergenciesSection({ emergencies }: { emergencies: Emergency[] }) {
 
 function ActivateMajorCard() {
   const qc = useQueryClient();
+  const [type, setType] = useState<"major" | "minor">("major");
   const [description, setDescription] = useState("");
   const [address, setAddress] = useState("");
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -718,7 +719,7 @@ function ActivateMajorCard() {
     mutationFn: () =>
       createEmergency(
         {
-          type: "major",
+          type,
           description: description.trim() || undefined,
           address: address.trim() || undefined,
           lat: coords?.lat,
@@ -758,16 +759,36 @@ function ActivateMajorCard() {
   return (
     <section className="bg-white border-2 border-[hsl(var(--primary))]/30 rounded-2xl p-6 shadow-sm">
       <SectionHeading
-        title="Activate Major emergency"
-        subtitle="Pages every volunteer in the affected area. Use only for confirmed serious incidents."
+        title="Activate emergency"
+        subtitle="Major pages every volunteer in the affected area. Minor is a quieter call-out — use for non-critical assistance."
       />
+      <div className="flex gap-2 mb-4">
+        {(["major", "minor"] as const).map((t) => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => setType(t)}
+            className={`flex-1 px-4 py-2 rounded-lg border-2 text-sm font-semibold capitalize transition ${
+              type === t
+                ? "border-[hsl(var(--primary))] bg-[hsl(var(--primary))]/5 text-[hsl(var(--primary))]"
+                : "border-stone-200 text-stone-600 hover:border-stone-300"
+            }`}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
       <form onSubmit={onSubmit} className="space-y-4">
         <textarea
           required
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={2}
-          placeholder="e.g. Block-wide kitchen fire reported at Blk 207 Jln Besar"
+          placeholder={
+            type === "major"
+              ? "e.g. Block-wide kitchen fire reported at Blk 207 Jln Besar"
+              : "e.g. Elderly resident needs help getting up, no injuries"
+          }
           className="w-full rounded-lg border border-stone-200 px-3 py-2 focus:outline-none focus:border-[hsl(var(--primary))]"
         />
         <input
@@ -800,7 +821,7 @@ function ActivateMajorCard() {
         {ok && (
           <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2 flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4" />
-            Major emergency activated and broadcast.
+            {type === "major" ? "Major" : "Minor"} emergency activated and broadcast.
           </p>
         )}
         <button
@@ -813,7 +834,7 @@ function ActivateMajorCard() {
           ) : (
             <Siren className="w-4 h-4" />
           )}
-          Activate Major
+          Activate {type === "major" ? "Major" : "Minor"}
         </button>
       </form>
     </section>
