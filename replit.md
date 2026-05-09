@@ -70,6 +70,13 @@ A neighbour-powered first-response network for Singapore's most vulnerable — p
 
 _Populate as you build — explicit user instructions worth remembering across sessions._
 
+## Maps
+
+- Google Maps is wired into the web app via `@vis.gl/react-google-maps`. The shared component lives in `artifacts/fire-kaki/src/components/emergency-map.tsx` and renders pins for active SOS calls (red = Major, amber = Minor) plus an optional "you" pin (slate).
+- Places used: Vulnerable SOS card (own active emergency, focused), NOK "Watching over" card (linked active emergency, focused), Volunteer "Nearby alerts" (all visible calls + own GPS), Reviewer + Admin "Live emergencies" (all calls).
+- The browser API key is injected at vite startup via `VITE_GOOGLE_MAPS_API_KEY="$GOOGLE_MAPS_API_KEY"` in `artifacts/fire-kaki/package.json`'s `dev`/`build` scripts. Restrict the key by HTTP referrer in Google Cloud Console — it's exposed to clients (this is normal for the Maps JavaScript API).
+- Responder pins are not rendered: the `EmergencyResponder` payload only carries `distanceM`, not coordinates, so we'd need to add `lastLat/lastLng` to the responder serializer if we ever want to plot them.
+
 ## Gotchas
 
 - Resend will refuse to send from an unverified domain (403 `validation_error`). The default `from` is `onboarding@resend.dev` — override with `RESEND_FROM_EMAIL` only after verifying the domain at https://resend.com/domains. Email-send failures are logged but do not block signup.

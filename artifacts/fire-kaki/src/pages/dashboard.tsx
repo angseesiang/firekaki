@@ -32,6 +32,7 @@ import {
 } from "@workspace/api-client-react";
 import { useMe, useLogout, useResendVerification } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
+import { EmergencyMap } from "@/components/emergency-map";
 
 const EMERGENCIES_KEY = ["/api/emergencies"] as const;
 const PENDING_KEY = ["/api/reviewer/pending-vulnerable"] as const;
@@ -250,6 +251,15 @@ function NokPanel({ name }: { name: string }) {
           </p>
           {active.address && (
             <p className="text-sm text-stone-700 mt-1">{active.address}</p>
+          )}
+          {active.lat != null && active.lng != null && (
+            <div className="mt-3">
+              <EmergencyMap
+                emergencies={[active]}
+                focusEmergencyId={active.id}
+                height={220}
+              />
+            </div>
           )}
           <ResponderStatus emergency={active} />
         </div>
@@ -479,6 +489,15 @@ function VulnerablePanel({ name, verified }: { name: string; verified: boolean }
           <p className="mt-2 text-sm text-stone-700">
             Sent at {new Date(activeEmergency.createdAt).toLocaleTimeString()}.
           </p>
+          {activeEmergency.lat != null && activeEmergency.lng != null && (
+            <div className="mt-3">
+              <EmergencyMap
+                emergencies={[activeEmergency]}
+                focusEmergencyId={activeEmergency.id}
+                height={220}
+              />
+            </div>
+          )}
           <ResponderStatus emergency={activeEmergency} />
         </div>
       )}
@@ -586,6 +605,14 @@ function VolunteerPanel() {
           </button>
         </div>
         {geoStatus && <p className="text-xs text-stone-700 mt-2">{geoStatus}</p>}
+      </div>
+
+      <div className="mb-6">
+        <EmergencyMap
+          emergencies={items}
+          selfLocation={coords}
+          height={300}
+        />
       </div>
 
       {items.length === 0 ? (

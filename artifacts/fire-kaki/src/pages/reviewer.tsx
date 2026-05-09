@@ -34,6 +34,7 @@ import {
   UserEditModal,
   type EditableRow,
 } from "@/components/user-edit-modal";
+import { EmergencyMap } from "@/components/emergency-map";
 
 const USERS_KEY = ["/api/reviewer/users-overview"] as const;
 const EMERG_KEY = ["/api/emergencies"] as const;
@@ -666,6 +667,9 @@ function EmergenciesSection({ emergencies }: { emergencies: Emergency[] }) {
           title={`Emergencies (${emergencies.length})`}
           subtitle="Read-only roster of every SOS call. Activate a Major emergency above to page volunteers."
         />
+        <div className="mb-4">
+          <EmergencyMap emergencies={emergencies} height={360} />
+        </div>
         <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
           {sorted.length === 0 ? (
             <p className="px-6 py-8 text-sm text-stone-500">No emergencies on record.</p>
