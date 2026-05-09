@@ -552,27 +552,18 @@ function VolunteerPanel() {
     onSuccess: () => qc.invalidateQueries({ queryKey: EMERGENCIES_KEY }),
   });
 
-  function shareLocation() {
+  function dropPin(c: { lat: number; lng: number }) {
+    setCoords(c);
     setGeoStatus(null);
-    if (!navigator.geolocation) {
-      setGeoStatus("Geolocation not available in this browser.");
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const c = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        setCoords(c);
-        updateLoc.mutate(c, {
-          onSuccess: () => setGeoStatus("Location shared — alerts within 2 km will appear below."),
-          onError: (err) =>
-            setGeoStatus(
-              (err as { data?: { message?: string } })?.data?.message ?? "Could not save location.",
-            ),
-        });
-      },
-      (err) => setGeoStatus(err.message),
-      { enableHighAccuracy: true, timeout: 10_000 },
-    );
+    updateLoc.mutate(c, {
+      onSuccess: () =>
+        setGeoStatus("Pin dropped — alerts within 2 km will appear below."),
+      onError: (err) =>
+        setGeoStatus(
+          (err as { data?: { message?: string } })?.data?.message ??
+            "Could not save location.",
+        ),
+    });
   }
 
   const items = list.data?.emergencies ?? [];
@@ -585,25 +576,13 @@ function VolunteerPanel() {
         subtitle="You'll be paged for active emergencies within a 2 km radius of your shared location."
       />
 
-      <div className="bg-stone-50 border border-stone-200 rounded-lg p-4 mb-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="font-semibold text-stone-900 text-sm">GPS matching</p>
-            <p className="text-xs text-stone-600 mt-0.5">
-              {coords
-                ? `Last shared: ${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`
-                : "Mandatory for the alert radius to work."}
-            </p>
-          </div>
-          <button
-            onClick={shareLocation}
-            disabled={updateLoc.isPending}
-            className="inline-flex items-center gap-2 text-sm bg-stone-900 text-white rounded-lg px-3 py-2 hover:bg-stone-700 disabled:opacity-60"
-          >
-            <MapPin className="w-4 h-4" />
-            {coords ? "Refresh location" : "Share my location"}
-          </button>
-        </div>
+      <div className="bg-stone-50 border border-stone-200 rounded-lg p-4 mb-3">
+        <p className="font-semibold text-stone-900 text-sm">GPS matching</p>
+        <p className="text-xs text-stone-600 mt-0.5">
+          {coords
+            ? `Pinned at ${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)} — tap the map again to move your pin.`
+            : "Tap anywhere on the map below to drop your blue pin. The alert radius (2 km) is calculated from this point."}
+        </p>
         {geoStatus && <p className="text-xs text-stone-700 mt-2">{geoStatus}</p>}
       </div>
 
@@ -611,7 +590,8 @@ function VolunteerPanel() {
         <EmergencyMap
           emergencies={items}
           selfLocation={coords}
-          height={300}
+          onMapClick={dropPin}
+          height={320}
         />
       </div>
 

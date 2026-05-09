@@ -21,6 +21,8 @@ interface EmergencyMapProps {
   height?: number;
   /** Show only currently-active emergencies. Defaults to true. */
   activeOnly?: boolean;
+  /** When provided, clicking the map calls this with the lat/lng of the click. */
+  onMapClick?: (coords: { lat: number; lng: number }) => void;
 }
 
 interface MapPoint {
@@ -38,6 +40,7 @@ export function EmergencyMap({
   focusEmergencyId,
   height = 320,
   activeOnly = true,
+  onMapClick,
 }: EmergencyMapProps) {
   const points = useMemo<MapPoint[]>(() => {
     const out: MapPoint[] = [];
@@ -103,6 +106,15 @@ export function EmergencyMap({
           gestureHandling="greedy"
           disableDefaultUI={false}
           clickableIcons={false}
+          onClick={
+            onMapClick
+              ? (ev) => {
+                  const ll = ev.detail.latLng;
+                  if (ll) onMapClick({ lat: ll.lat, lng: ll.lng });
+                }
+              : undefined
+          }
+          style={onMapClick ? { cursor: "crosshair" } : undefined}
         >
           {points.map((p) => (
             <PointMarker key={p.key} point={p} />
