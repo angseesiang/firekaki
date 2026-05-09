@@ -347,6 +347,9 @@ importers:
       '@tanstack/react-query':
         specifier: 'catalog:'
         version: 5.90.21(react@19.1.0)
+      '@types/google.maps':
+        specifier: ^3.64.0
+        version: 3.64.0
       '@types/node':
         specifier: 'catalog:'
         version: 25.3.5

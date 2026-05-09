@@ -1,10 +1,12 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   APIProvider,
   Map,
   AdvancedMarker,
   InfoWindow,
   useAdvancedMarkerRef,
+  useMap,
+  useMapsLibrary,
 } from "@vis.gl/react-google-maps";
 import type { Emergency } from "@workspace/api-client-react";
 
@@ -23,6 +25,8 @@ interface EmergencyMapProps {
   activeOnly?: boolean;
   /** When provided, clicking the map calls this with the lat/lng of the click. */
   onMapClick?: (coords: { lat: number; lng: number }) => void;
+  /** Draw walking routes from selfLocation to every active emergency pin. */
+  showRoutesFromSelf?: boolean;
 }
 
 interface MapPoint {
@@ -41,6 +45,7 @@ export function EmergencyMap({
   height = 320,
   activeOnly = true,
   onMapClick,
+  showRoutesFromSelf = false,
 }: EmergencyMapProps) {
   const points = useMemo<MapPoint[]>(() => {
     const out: MapPoint[] = [];
@@ -119,6 +124,14 @@ export function EmergencyMap({
           {points.map((p) => (
             <PointMarker key={p.key} point={p} />
           ))}
+          {showRoutesFromSelf && selfLocation && (
+            <RoutesOverlay
+              origin={selfLocation}
+              destinations={points.filter(
+                (p) => p.kind === "major" || p.kind === "minor",
+              )}
+            />
+          )}
         </Map>
       </div>
     </APIProvider>
@@ -173,6 +186,69 @@ function PointMarker({ point }: { point: MapPoint }) {
       )}
     </>
   );
+}
+
+function RoutesOverlay({
+  origin,
+  destinations,
+}: {
+  origin: { lat: number; lng: number };
+  destinations: MapPoint[];
+}) {
+  const map = useMap();
+  const routesLib = useMapsLibrary("routes");
+  const [polylines, setPolylines] = useState<google.maps.Polyline[]>([]);
+
+  useEffect(() => {
+    if (!map || !routesLib) return;
+    const service = new routesLib.DirectionsService();
+    let cancelled = false;
+    const created: google.maps.Polyline[] = [];
+
+    Promise.all(
+      destinations.map((d) =>
+        service
+          .route({
+            origin,
+            destination: { lat: d.lat, lng: d.lng },
+            travelMode: google.maps.TravelMode.WALKING,
+          })
+          .then((res) => ({ d, res }))
+          .catch(() => null),
+      ),
+    ).then((results) => {
+      if (cancelled) return;
+      for (const r of results) {
+        if (!r) continue;
+        const path = r.res.routes[0]?.overview_path;
+        if (!path) continue;
+        const color = r.d.kind === "major" ? "#cf3517" : "#f59e0b";
+        const line = new google.maps.Polyline({
+          path,
+          strokeColor: color,
+          strokeOpacity: 0.85,
+          strokeWeight: 5,
+          map,
+        });
+        created.push(line);
+      }
+      setPolylines(created);
+    });
+
+    return () => {
+      cancelled = true;
+      for (const line of created) line.setMap(null);
+    };
+  }, [map, routesLib, origin.lat, origin.lng, JSON.stringify(destinations.map((d) => [d.key, d.lat, d.lng]))]);
+
+  // cleanup any previously-rendered polylines on re-render
+  useEffect(() => {
+    return () => {
+      for (const line of polylines) line.setMap(null);
+    };
+  }, [polylines]);
+
+  return null;
 }
 
 export default EmergencyMap;

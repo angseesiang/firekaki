@@ -541,6 +541,26 @@ function VolunteerPanel() {
     onSuccess: () => qc.invalidateQueries({ queryKey: EMERGENCIES_KEY }),
   });
 
+  // auto-track location: watchPosition keeps coords fresh and pushes to server
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setGeoStatus("Geolocation not available in this browser.");
+      return;
+    }
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        const c = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setCoords(c);
+        setGeoStatus(null);
+        updateLoc.mutate(c);
+      },
+      (err) => setGeoStatus(err.message),
+      { enableHighAccuracy: true, maximumAge: 30_000, timeout: 30_000 },
+    );
+    return () => navigator.geolocation.clearWatch(watchId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const respond = useMutation({
     mutationFn: ({ id, status }: { id: number; status: "accepted" | "declined" }) =>
       respondEmergency(id, { status }, { credentials: "include" }),
@@ -551,20 +571,6 @@ function VolunteerPanel() {
     mutationFn: (id: number) => arriveEmergency(id, { credentials: "include" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: EMERGENCIES_KEY }),
   });
-
-  function dropPin(c: { lat: number; lng: number }) {
-    setCoords(c);
-    setGeoStatus(null);
-    updateLoc.mutate(c, {
-      onSuccess: () =>
-        setGeoStatus("Pin dropped — alerts within 2 km will appear below."),
-      onError: (err) =>
-        setGeoStatus(
-          (err as { data?: { message?: string } })?.data?.message ??
-            "Could not save location.",
-        ),
-    });
-  }
 
   const items = list.data?.emergencies ?? [];
 
@@ -580,8 +586,8 @@ function VolunteerPanel() {
         <p className="font-semibold text-stone-900 text-sm">GPS matching</p>
         <p className="text-xs text-stone-600 mt-0.5">
           {coords
-            ? `Pinned at ${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)} — tap the map again to move your pin.`
-            : "Tap anywhere on the map below to drop your blue pin. The alert radius (2 km) is calculated from this point."}
+            ? `Auto-pinned at ${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)} — your blue pin updates automatically.`
+            : "Allow location access — your blue pin will appear on the map automatically."}
         </p>
         {geoStatus && <p className="text-xs text-stone-700 mt-2">{geoStatus}</p>}
       </div>
@@ -590,7 +596,7 @@ function VolunteerPanel() {
         <EmergencyMap
           emergencies={items}
           selfLocation={coords}
-          onMapClick={dropPin}
+          showRoutesFromSelf
           height={320}
         />
       </div>
