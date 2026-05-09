@@ -19,6 +19,7 @@ import type {
 import type {
   AdminCreateUserRequest,
   AdminCreatedUser,
+  AdminListVolunteerLocations200,
   AdminUpdateUserRequest,
   AdminUsersOverview,
   CreateEmergencyRequest,
@@ -1796,6 +1797,86 @@ export const useUpdateVulnerableLocation = <
 > => {
   return useMutation(getUpdateVulnerableLocationMutationOptions(options));
 };
+
+/**
+ * @summary Admin — live locations of volunteers (for the live-emergencies map)
+ */
+export const getAdminListVolunteerLocationsUrl = () => {
+  return `/api/admin/volunteer-locations`;
+};
+
+export const adminListVolunteerLocations = async (
+  options?: RequestInit,
+): Promise<AdminListVolunteerLocations200> => {
+  return customFetch<AdminListVolunteerLocations200>(
+    getAdminListVolunteerLocationsUrl(),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getAdminListVolunteerLocationsQueryKey = () => {
+  return [`/api/admin/volunteer-locations`] as const;
+};
+
+export const getAdminListVolunteerLocationsQueryOptions = <
+  TData = Awaited<ReturnType<typeof adminListVolunteerLocations>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof adminListVolunteerLocations>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getAdminListVolunteerLocationsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof adminListVolunteerLocations>>
+  > = ({ signal }) =>
+    adminListVolunteerLocations({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof adminListVolunteerLocations>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type AdminListVolunteerLocationsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof adminListVolunteerLocations>>
+>;
+export type AdminListVolunteerLocationsQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Admin — live locations of volunteers (for the live-emergencies map)
+ */
+
+export function useAdminListVolunteerLocations<
+  TData = Awaited<ReturnType<typeof adminListVolunteerLocations>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof adminListVolunteerLocations>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getAdminListVolunteerLocationsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Admin — list every user across all four vaults

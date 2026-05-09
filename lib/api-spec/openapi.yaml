@@ -575,6 +575,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /admin/volunteer-locations:
+    get:
+      operationId: adminListVolunteerLocations
+      tags: [auth]
+      summary: Admin — live locations of volunteers (for the live-emergencies map)
+      responses:
+        "200":
+          description: Volunteer locations
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  volunteers:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/VolunteerLocation"
+                required: [volunteers]
+        "403":
+          description: Admin role required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /admin/users-overview:
     get:
       operationId: adminListAllUsers
@@ -995,6 +1019,22 @@ components:
           type: string
           format: date-time
       required: [id, email, name, disabled, createdAt]
+    VolunteerLocation:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        lat:
+          type: number
+        lng:
+          type: number
+        lastSeenAt:
+          type: string
+          format: date-time
+          nullable: true
+      required: [id, name, lat, lng, lastSeenAt]
     AdminListVolunteer:
       type: object
       properties:

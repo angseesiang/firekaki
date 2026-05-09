@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import bcrypt from "bcryptjs";
-import { eq, ne, desc } from "drizzle-orm";
+import { eq, ne, desc, and, isNotNull } from "drizzle-orm";
 import {
   db,
   adminUsers,
@@ -86,6 +86,42 @@ router.post("/admin/users", requireAdmin, async (req, res) => {
     }
     req.log.error({ err }, "admin create user failed");
     sendError(res, 500, "Could not create user");
+  }
+});
+
+router.get("/admin/volunteer-locations", requireAdmin, async (req, res) => {
+  try {
+    const rows = await db
+      .select({
+        id: volunteerUsers.id,
+        name: volunteerUsers.name,
+        lat: volunteerUsers.lastLat,
+        lng: volunteerUsers.lastLng,
+        lastSeenAt: volunteerUsers.lastSeenAt,
+        disabled: volunteerUsers.disabled,
+      })
+      .from(volunteerUsers)
+      .where(
+        and(
+          isNotNull(volunteerUsers.lastLat),
+          isNotNull(volunteerUsers.lastLng),
+          eq(volunteerUsers.disabled, false),
+        ),
+      );
+    res.json({
+      volunteers: rows
+        .filter((r) => r.lat != null && r.lng != null)
+        .map((r) => ({
+          id: r.id,
+          name: r.name,
+          lat: r.lat as number,
+          lng: r.lng as number,
+          lastSeenAt: r.lastSeenAt ? r.lastSeenAt.toISOString() : null,
+        })),
+    });
+  } catch (err) {
+    req.log.error({ err }, "admin list volunteer locations failed");
+    sendError(res, 500, "Could not list volunteer locations");
   }
 });
 

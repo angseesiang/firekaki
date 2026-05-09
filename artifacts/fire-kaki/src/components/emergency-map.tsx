@@ -27,13 +27,21 @@ interface EmergencyMapProps {
   onMapClick?: (coords: { lat: number; lng: number }) => void;
   /** Draw walking routes from selfLocation to every active emergency pin. */
   showRoutesFromSelf?: boolean;
+  /** Live volunteer locations to render as blue pins (admin/reviewer view). */
+  volunteerLocations?: ReadonlyArray<{
+    id: number;
+    name: string;
+    lat: number;
+    lng: number;
+    lastSeenAt?: string | null;
+  }>;
 }
 
 interface MapPoint {
   key: string;
   lat: number;
   lng: number;
-  kind: "major" | "minor" | "responder" | "self";
+  kind: "major" | "minor" | "responder" | "self" | "volunteer";
   label: string;
   sub?: string;
 }
@@ -46,6 +54,7 @@ export function EmergencyMap({
   activeOnly = true,
   onMapClick,
   showRoutesFromSelf = false,
+  volunteerLocations,
 }: EmergencyMapProps) {
   const points = useMemo<MapPoint[]>(() => {
     const out: MapPoint[] = [];
@@ -76,8 +85,22 @@ export function EmergencyMap({
         label: "You",
       });
     }
+    if (volunteerLocations) {
+      for (const v of volunteerLocations) {
+        out.push({
+          key: `v-${v.id}`,
+          lat: v.lat,
+          lng: v.lng,
+          kind: "volunteer",
+          label: v.name,
+          sub: v.lastSeenAt
+            ? `Last seen ${new Date(v.lastSeenAt).toLocaleTimeString()}`
+            : "Volunteer on standby",
+        });
+      }
+    }
     return out;
-  }, [emergencies, focusEmergencyId, activeOnly, selfLocation]);
+  }, [emergencies, focusEmergencyId, activeOnly, selfLocation, volunteerLocations]);
 
   const center = useMemo(() => {
     if (points.length === 0) return JLN_BESAR;
@@ -150,6 +173,7 @@ function PointMarker({ point }: { point: MapPoint }) {
         return { bg: "#f59e0b", border: "#92400e", glyph: "#fff" };
       case "responder":
         return { bg: "#16a34a", border: "#14532d", glyph: "#fff" };
+      case "volunteer":
       case "self":
       default:
         return { bg: "#2563eb", border: "#1e3a8a", glyph: "#fff" };

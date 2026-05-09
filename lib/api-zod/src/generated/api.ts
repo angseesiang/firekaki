@@ -559,6 +559,21 @@ export const UpdateVulnerableLocationResponse = zod.object({
 });
 
 /**
+ * @summary Admin — live locations of volunteers (for the live-emergencies map)
+ */
+export const AdminListVolunteerLocationsResponse = zod.object({
+  volunteers: zod.array(
+    zod.object({
+      id: zod.number(),
+      name: zod.string(),
+      lat: zod.number(),
+      lng: zod.number(),
+      lastSeenAt: zod.coerce.date().nullable(),
+    }),
+  ),
+});
+
+/**
  * @summary Admin — list every user across all four vaults
  */
 export const AdminListAllUsersResponse = zod.object({

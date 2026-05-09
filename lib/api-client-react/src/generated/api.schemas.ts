@@ -158,6 +158,14 @@ export interface AdminListReviewer {
   createdAt: string;
 }
 
+export interface VolunteerLocation {
+  id: number;
+  name: string;
+  lat: number;
+  lng: number;
+  lastSeenAt: string | null;
+}
+
 export interface AdminListVolunteer {
   id: number;
   email: string;
@@ -370,3 +378,7 @@ export const VerifyEmailRole = {
   volunteer: "volunteer",
   vulnerable: "vulnerable",
 } as const;
+
+export type AdminListVolunteerLocations200 = {
+  volunteers: VolunteerLocation[];
+};

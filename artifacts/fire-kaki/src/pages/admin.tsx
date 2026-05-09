@@ -21,6 +21,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   adminListAllUsers,
+  adminListVolunteerLocations,
   adminCreateUser,
   adminDisableUser,
   adminEnableUser,
@@ -732,14 +733,25 @@ function EmergenciesSection({
     return order[a.status] - order[b.status];
   });
 
+  const volunteerLocs = useQuery({
+    queryKey: ["/api/admin/volunteer-locations"] as const,
+    queryFn: () => adminListVolunteerLocations({ credentials: "include" }),
+    refetchInterval: 8_000,
+  });
+  const volunteers = volunteerLocs.data?.volunteers ?? [];
+
   return (
     <div>
       <SectionHeading
         title={`Emergencies (${emergencies.length})`}
-        subtitle="Real-time view of every SOS call across the network."
+        subtitle={`Real-time view of every SOS call across the network. ${volunteers.length} volunteer${volunteers.length === 1 ? "" : "s"} live on the map.`}
       />
       <div className="mb-4">
-        <EmergencyMap emergencies={emergencies} height={360} />
+        <EmergencyMap
+          emergencies={emergencies}
+          volunteerLocations={volunteers}
+          height={360}
+        />
       </div>
       <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
         {sorted.length === 0 ? (
