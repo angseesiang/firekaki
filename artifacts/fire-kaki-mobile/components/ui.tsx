@@ -12,16 +12,11 @@ import {
   TextStyle,
 } from "react-native";
 import * as Haptics from "expo-haptics";
+import { nativeFonts } from "@workspace/design-system/native";
 
 import { useColors } from "@/hooks/useColors";
 
-export const FONT = {
-  serif: "InstrumentSerif_400Regular",
-  sans: "PlusJakartaSans_400Regular",
-  sansMedium: "PlusJakartaSans_500Medium",
-  sansSemibold: "PlusJakartaSans_600SemiBold",
-  sansBold: "PlusJakartaSans_700Bold",
-};
+export const FONT = nativeFonts;
 
 interface ButtonProps {
   label: string;
