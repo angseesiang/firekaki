@@ -3,7 +3,6 @@ import {
   APIProvider,
   Map,
   AdvancedMarker,
-  Pin,
   InfoWindow,
   useAdvancedMarkerRef,
 } from "@vis.gl/react-google-maps";
@@ -140,10 +139,16 @@ function PointMarker({ point }: { point: MapPoint }) {
         onClick={() => setOpen((s) => !s)}
         title={point.label}
       >
-        <Pin
-          background={colors.bg}
-          borderColor={colors.border}
-          glyphColor={colors.glyph}
+        <div
+          style={{
+            width: 22,
+            height: 22,
+            borderRadius: "50% 50% 50% 0",
+            transform: "rotate(-45deg)",
+            background: colors.bg,
+            border: `2px solid ${colors.border}`,
+            boxShadow: "0 2px 6px rgba(0,0,0,0.35)",
+          }}
         />
       </AdvancedMarker>
       {open && marker && (

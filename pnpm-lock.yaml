@@ -244,10 +244,6 @@ importers:
         version: 3.1.0
 
   artifacts/fire-kaki:
-    dependencies:
-      '@vis.gl/react-google-maps':
-        specifier: ^1.8.3
-        version: 1.8.3(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
     devDependencies:
       '@hookform/resolvers':
         specifier: ^3.10.0
@@ -360,6 +356,9 @@ importers:
       '@types/react-dom':
         specifier: 'catalog:'
         version: 19.2.3(@types/react@19.2.14)
+      '@vis.gl/react-google-maps':
+        specifier: ^1.8.3
+        version: 1.8.3(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@vitejs/plugin-react':
         specifier: 'catalog:'
         version: 5.1.4(vite@7.3.2(@types/node@25.3.5)(jiti@2.6.1)(lightningcss@1.31.1)(terser@5.47.0)(tsx@4.21.0)(yaml@2.8.2))
