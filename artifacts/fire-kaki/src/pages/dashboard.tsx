@@ -574,7 +574,11 @@ function VolunteerPanel() {
 
   const items = list.data?.emergencies ?? [];
   const activeItems = items.filter((e) => e.status === "active");
-  const historyItems = items.filter((e) => e.status !== "active");
+  // History only shows alerts the volunteer accepted (and any they marked arrived).
+  // Declined/no-response alerts are hidden so the log stays focused on actual responses.
+  const historyItems = items.filter(
+    (e) => e.status !== "active" && e.myResponse === "accepted",
+  );
   const [tab, setTab] = useState<"active" | "history">("active");
   const visibleItems = tab === "active" ? activeItems : historyItems;
 
