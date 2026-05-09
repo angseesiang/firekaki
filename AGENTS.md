@@ -35,8 +35,7 @@ A neighbour-powered first-response network for Singapore's most vulnerable — p
 
 ## Where things live
 
-- API contract (source of truth): `lib/api-spec/openapi.yaml`
-- DB schemas (one file per role vault): `lib/db/src/schema/{admin,reviewer,volunteer,vulnerable}.ts`
+- DB schemas: `lib/db/src/schema/{admin,reviewer,volunteer,vulnerable,nok}.ts` (one file per role vault) plus `emergency.ts` for the emergency event table
 - API server routes: `artifacts/api-server/src/routes/{health,auth}.ts`
 - Session middleware: `artifacts/api-server/src/lib/session.ts` (express-session + connect-pg-simple)
 - Frontend auth hooks: `artifacts/fire-kaki/src/lib/auth.ts`
@@ -95,9 +94,8 @@ A neighbour-powered first-response network for Singapore's most vulnerable — p
 
 - Resend will refuse to send from an unverified domain (403 `validation_error`). The default `from` is `onboarding@resend.dev` — override with `RESEND_FROM_EMAIL` only after verifying the domain at https://resend.com/domains. Email-send failures are logged but do not block signup.
 - After any edit to `lib/api-spec/openapi.yaml`, run `pnpm --filter @workspace/api-spec run codegen` AND restart the api-server workflow so its esbuild bundle picks up the regenerated zod schemas.
-- `pnpm --filter @workspace/db run push` will try to drop the manually-created `session` table. For additive schema changes, use raw SQL `ALTER TABLE` via `executeSql` instead.
 - Resend uses Replit's `REPL_IDENTITY` connector token (`artifacts/api-server/src/lib/email.ts`). Email sending is not portable to non-Replit hosts without rewiring the integration.
-- `lib/db` has no `migrations/` folder — schema changes are deployed via `drizzle-kit push`. **For additive changes to tables that were created manually (especially `session`), prefer raw SQL `ALTER TABLE`** because `push` will try to drop and recreate them.
+- `lib/db` has no `migrations/` folder — schema changes are deployed via `drizzle-kit push`. **For additive changes to tables that were created manually (especially `session`), prefer raw SQL `ALTER TABLE` via `executeSql`** because `pnpm --filter @workspace/db run push` will try to drop and recreate them.
 
 ## Pointers
 
