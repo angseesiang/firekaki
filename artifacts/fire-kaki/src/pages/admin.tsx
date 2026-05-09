@@ -724,21 +724,28 @@ function EmergenciesSection({
     onSuccess: () => qc.invalidateQueries({ queryKey: EMERG_KEY }),
   });
 
-  const sorted = [...emergencies].sort((a, b) => {
-    const order: Record<Emergency["status"], number> = {
-      active: 0,
-      deactivated: 1,
-      resolved: 2,
-    };
-    return order[a.status] - order[b.status];
-  });
-
   const volunteerLocs = useQuery({
     queryKey: ["/api/admin/volunteer-locations"] as const,
     queryFn: () => adminListVolunteerLocations({ credentials: "include" }),
     refetchInterval: 8_000,
   });
   const volunteers = volunteerLocs.data?.volunteers ?? [];
+
+  const [tab, setTab] = useState<"active" | "history">("active");
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+
+  const active = emergencies.filter((e) => e.status === "active");
+  const history = emergencies.filter((e) => e.status !== "active");
+
+  const visible = tab === "active" ? active : history;
+
+  // Reset selection if it leaves the active list (e.g., deactivated).
+  useEffect(() => {
+    if (selectedId == null) return;
+    if (!active.some((e) => e.id === selectedId)) setSelectedId(null);
+  }, [active, selectedId]);
+
+  const selectedSummary = active.find((e) => e.id === selectedId) ?? null;
 
   return (
     <div>
@@ -750,63 +757,124 @@ function EmergenciesSection({
         <EmergencyMap
           emergencies={emergencies}
           volunteerLocations={volunteers}
+          routeToEmergencyId={selectedId}
           height={360}
         />
+        {selectedSummary && (
+          <div className="mt-2 flex items-center justify-between text-xs bg-stone-50 border border-stone-200 rounded-lg px-3 py-2">
+            <span className="text-stone-700">
+              Showing walking routes from {volunteers.length} volunteer
+              {volunteers.length === 1 ? "" : "s"} to{" "}
+              <span className="font-semibold">
+                {selectedSummary.type === "major" ? "Major" : "Minor"} ·{" "}
+                {selectedSummary.creatorName}
+              </span>
+              {selectedSummary.address ? ` (${selectedSummary.address})` : ""}.
+            </span>
+            <button
+              onClick={() => setSelectedId(null)}
+              className="text-stone-600 hover:text-stone-900 font-semibold"
+            >
+              Clear routes
+            </button>
+          </div>
+        )}
       </div>
+
+      <div className="mb-3 inline-flex rounded-lg border border-stone-200 bg-white p-1 text-xs font-semibold">
+        <button
+          onClick={() => setTab("active")}
+          className={`px-3 py-1.5 rounded-md ${tab === "active" ? "bg-stone-900 text-white" : "text-stone-600 hover:text-stone-900"}`}
+        >
+          Active ({active.length})
+        </button>
+        <button
+          onClick={() => setTab("history")}
+          className={`px-3 py-1.5 rounded-md ${tab === "history" ? "bg-stone-900 text-white" : "text-stone-600 hover:text-stone-900"}`}
+        >
+          History ({history.length})
+        </button>
+      </div>
+
       <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
-        {sorted.length === 0 ? (
-          <p className="px-6 py-8 text-sm text-stone-500">No emergencies on record.</p>
+        {visible.length === 0 ? (
+          <p className="px-6 py-8 text-sm text-stone-500">
+            {tab === "active"
+              ? "No active emergencies right now."
+              : "No deactivated or resolved emergencies yet."}
+          </p>
         ) : (
           <ul className="divide-y divide-stone-100">
-            {sorted.map((e) => (
-              <li
-                key={e.id}
-                className="px-6 py-4 flex flex-wrap items-start justify-between gap-4"
-              >
-                <div className="text-sm flex-1 min-w-[260px]">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {e.status === "active" ? (
-                      <StatusBadge
-                        kind={e.type === "major" ? "live-major" : "live-minor"}
-                      />
-                    ) : (
-                      <StatusBadge kind={e.status as "deactivated" | "resolved"} />
-                    )}
-                    <span className="font-semibold text-stone-900">{e.creatorName}</span>
-                    <span className="text-xs text-stone-500">
-                      ({e.creatorRole})
-                    </span>
-                  </div>
-                  <p className="text-xs text-stone-600 mt-1">
-                    {e.address || "Unknown address"}
-                    {e.lat && e.lng && (
-                      <span className="font-mono ml-2">
-                        ({e.lat.toFixed(4)}, {e.lng.toFixed(4)})
-                      </span>
-                    )}
-                  </p>
-                  {e.description && (
-                    <p className="text-xs text-stone-700 mt-1">{e.description}</p>
-                  )}
-                  {e.responseStats && (
-                    <p className="text-xs text-stone-500 mt-1">
-                      {e.responseStats.accepted} accepted · {e.responseStats.arrived} arrived ·{" "}
-                      {e.responseStats.declined} declined
+            {visible.map((e) => {
+              const isActive = e.status === "active";
+              const isSelected = selectedId === e.id;
+              return (
+                <li
+                  key={e.id}
+                  onClick={
+                    isActive ? () => setSelectedId(isSelected ? null : e.id) : undefined
+                  }
+                  className={`px-6 py-4 flex flex-wrap items-start justify-between gap-4 ${
+                    isActive ? "cursor-pointer" : ""
+                  } ${
+                    isSelected
+                      ? "bg-amber-50 border-l-4 border-l-[hsl(var(--primary))]"
+                      : isActive
+                        ? "hover:bg-stone-50"
+                        : ""
+                  }`}
+                >
+                  <div className="text-sm flex-1 min-w-[260px]">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {isActive ? (
+                        <StatusBadge
+                          kind={e.type === "major" ? "live-major" : "live-minor"}
+                        />
+                      ) : (
+                        <StatusBadge kind={e.status as "deactivated" | "resolved"} />
+                      )}
+                      <span className="font-semibold text-stone-900">{e.creatorName}</span>
+                      <span className="text-xs text-stone-500">({e.creatorRole})</span>
+                      {isSelected && (
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-[hsl(var(--primary))]">
+                          Routes shown
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-stone-600 mt-1">
+                      {e.address || "Unknown address"}
+                      {e.lat && e.lng && (
+                        <span className="font-mono ml-2">
+                          ({e.lat.toFixed(4)}, {e.lng.toFixed(4)})
+                        </span>
+                      )}
                     </p>
+                    {e.description && (
+                      <p className="text-xs text-stone-700 mt-1">{e.description}</p>
+                    )}
+                    {e.responseStats && (
+                      <p className="text-xs text-stone-500 mt-1">
+                        {e.responseStats.accepted} accepted · {e.responseStats.arrived} arrived ·{" "}
+                        {e.responseStats.declined} declined
+                      </p>
+                    )}
+                  </div>
+                  {canDeactivate && isActive && (
+                    <button
+                      onClick={(ev) => {
+                        ev.stopPropagation();
+                        deactivate.mutate(e.id);
+                      }}
+                      disabled={deactivate.isPending}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold border border-red-300 text-red-700 rounded-md px-3 py-1.5 hover:bg-red-50 disabled:opacity-60"
+                    >
+                      <PowerOff className="w-3.5 h-3.5" />
+                      Deactivate
+                    </button>
                   )}
-                </div>
-                {canDeactivate && e.status === "active" && (
-                  <button
-                    onClick={() => deactivate.mutate(e.id)}
-                    disabled={deactivate.isPending}
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold border border-red-300 text-red-700 rounded-md px-3 py-1.5 hover:bg-red-50 disabled:opacity-60"
-                  >
-                    <PowerOff className="w-3.5 h-3.5" />
-                    Deactivate
-                  </button>
-                )}
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>

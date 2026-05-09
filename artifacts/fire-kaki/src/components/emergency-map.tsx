@@ -35,6 +35,8 @@ interface EmergencyMapProps {
     lng: number;
     lastSeenAt?: string | null;
   }>;
+  /** When set, draw walking routes from every volunteer to this emergency. */
+  routeToEmergencyId?: number | null;
 }
 
 interface MapPoint {
@@ -55,7 +57,16 @@ export function EmergencyMap({
   onMapClick,
   showRoutesFromSelf = false,
   volunteerLocations,
+  routeToEmergencyId,
 }: EmergencyMapProps) {
+  const routeTarget = useMemo(() => {
+    if (!routeToEmergencyId) return null;
+    const e = emergencies.find(
+      (x) => x.id === routeToEmergencyId && x.status === "active",
+    );
+    if (!e || e.lat == null || e.lng == null) return null;
+    return { id: e.id, lat: e.lat, lng: e.lng, type: e.type };
+  }, [routeToEmergencyId, emergencies]);
   const points = useMemo<MapPoint[]>(() => {
     const out: MapPoint[] = [];
     const filtered = focusEmergencyId
@@ -156,6 +167,12 @@ export function EmergencyMap({
               )}
             />
           )}
+          {routeTarget && volunteerLocations && volunteerLocations.length > 0 && (
+            <VolunteerRoutesOverlay
+              destination={routeTarget}
+              origins={volunteerLocations}
+            />
+          )}
         </Map>
       </div>
     </APIProvider>
@@ -242,6 +259,60 @@ function PointMarker({ point }: { point: MapPoint }) {
       )}
     </>
   );
+}
+
+function VolunteerRoutesOverlay({
+  destination,
+  origins,
+}: {
+  destination: { id: number; lat: number; lng: number; type: "major" | "minor" };
+  origins: ReadonlyArray<{ id: number; name: string; lat: number; lng: number }>;
+}) {
+  const map = useMap();
+  const routesLib = useMapsLibrary("routes");
+
+  useEffect(() => {
+    if (!map || !routesLib) return;
+    const service = new routesLib.DirectionsService();
+    let cancelled = false;
+    const created: google.maps.Polyline[] = [];
+    const baseColor = destination.type === "major" ? "#cf3517" : "#f59e0b";
+
+    Promise.all(
+      origins.map((o) =>
+        service
+          .route({
+            origin: { lat: o.lat, lng: o.lng },
+            destination: { lat: destination.lat, lng: destination.lng },
+            travelMode: google.maps.TravelMode.WALKING,
+          })
+          .then((res) => ({ res }))
+          .catch(() => null),
+      ),
+    ).then((results) => {
+      if (cancelled) return;
+      for (const r of results) {
+        if (!r) continue;
+        const path = r.res.routes[0]?.overview_path;
+        if (!path) continue;
+        const line = new google.maps.Polyline({
+          path,
+          strokeColor: baseColor,
+          strokeOpacity: 0.8,
+          strokeWeight: 4,
+          map,
+        });
+        created.push(line);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      for (const line of created) line.setMap(null);
+    };
+  }, [map, routesLib, destination, origins]);
+
+  return null;
 }
 
 function RoutesOverlay({
