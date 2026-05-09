@@ -1,0 +1,14 @@
+{
+  "name": "@workspace/design-system",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": [
+    "./src/web.css"
+  ],
+  "exports": {
+    ".": "./src/index.ts",
+    "./native": "./src/native.ts",
+    "./web.css": "./src/web.css"
+  }
+}
