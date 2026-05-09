@@ -573,6 +573,10 @@ function VolunteerPanel() {
   });
 
   const items = list.data?.emergencies ?? [];
+  const activeItems = items.filter((e) => e.status === "active");
+  const historyItems = items.filter((e) => e.status !== "active");
+  const [tab, setTab] = useState<"active" | "history">("active");
+  const visibleItems = tab === "active" ? activeItems : historyItems;
 
   return (
     <section className="bg-white border border-stone-200 rounded-2xl p-8 shadow-sm">
@@ -594,20 +598,37 @@ function VolunteerPanel() {
 
       <div className="mb-6">
         <EmergencyMap
-          emergencies={items}
+          emergencies={activeItems}
           selfLocation={coords}
           showRoutesFromSelf
           height={320}
         />
       </div>
 
-      {items.length === 0 ? (
+      <div className="mb-3 inline-flex rounded-lg border border-stone-200 bg-white p-1 text-xs font-semibold">
+        <button
+          onClick={() => setTab("active")}
+          className={`px-3 py-1.5 rounded-md ${tab === "active" ? "bg-stone-900 text-white" : "text-stone-600 hover:text-stone-900"}`}
+        >
+          Active ({activeItems.length})
+        </button>
+        <button
+          onClick={() => setTab("history")}
+          className={`px-3 py-1.5 rounded-md ${tab === "history" ? "bg-stone-900 text-white" : "text-stone-600 hover:text-stone-900"}`}
+        >
+          History ({historyItems.length})
+        </button>
+      </div>
+
+      {visibleItems.length === 0 ? (
         <p className="text-sm text-stone-500">
-          No alerts in your area right now. Share your location and keep this tab open.
+          {tab === "active"
+            ? "No alerts in your area right now. Share your location and keep this tab open."
+            : "No past alerts yet. Deactivated and resolved calls will show up here."}
         </p>
       ) : (
         <ul className="space-y-2">
-          {items.map((e) => (
+          {visibleItems.map((e) => (
             <EmergencyRow
               key={e.id}
               e={e}
