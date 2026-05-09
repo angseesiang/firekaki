@@ -579,7 +579,7 @@ paths:
     get:
       operationId: adminListVolunteerLocations
       tags: [auth]
-      summary: Admin — live locations of volunteers (for the live-emergencies map)
+      summary: Reviewer/Admin — live locations of volunteers (for the live-emergencies map)
       responses:
         "200":
           description: Volunteer locations

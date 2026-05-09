@@ -19,6 +19,7 @@ import {
   verifyVulnerable,
   listEmergencies,
   createEmergency,
+  adminListVolunteerLocations,
   type Emergency,
   type ReviewerUsersOverview,
 } from "@workspace/api-client-react";
@@ -650,14 +651,26 @@ function VulnerableSection({
 /* ───────────── Live emergencies (reviewer scope: read-only + activate Major) ───────────── */
 
 function EmergenciesSection({ emergencies }: { emergencies: Emergency[] }) {
-  const sorted = [...emergencies].sort((a, b) => {
-    const order: Record<Emergency["status"], number> = {
-      active: 0,
-      deactivated: 1,
-      resolved: 2,
-    };
-    return order[a.status] - order[b.status];
+  const volunteerLocs = useQuery({
+    queryKey: ["/api/admin/volunteer-locations"] as const,
+    queryFn: () => adminListVolunteerLocations({ credentials: "include" }),
+    refetchInterval: 8_000,
   });
+  const volunteers = volunteerLocs.data?.volunteers ?? [];
+
+  const [tab, setTab] = useState<"active" | "history">("active");
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+
+  const active = emergencies.filter((e) => e.status === "active");
+  const history = emergencies.filter((e) => e.status !== "active");
+  const visible = tab === "active" ? active : history;
+
+  useEffect(() => {
+    if (selectedId == null) return;
+    if (!active.some((e) => e.id === selectedId)) setSelectedId(null);
+  }, [active, selectedId]);
+
+  const selectedSummary = active.find((e) => e.id === selectedId) ?? null;
 
   return (
     <div className="space-y-8">
@@ -665,43 +678,110 @@ function EmergenciesSection({ emergencies }: { emergencies: Emergency[] }) {
       <div>
         <SectionHeading
           title={`Emergencies (${emergencies.length})`}
-          subtitle="Read-only roster of every SOS call. Activate a Major emergency above to page volunteers."
+          subtitle={`Read-only roster of every SOS call. ${volunteers.length} volunteer${volunteers.length === 1 ? "" : "s"} live on the map. Activate a Major emergency above to page volunteers.`}
         />
         <div className="mb-4">
-          <EmergencyMap emergencies={emergencies} height={360} />
+          <EmergencyMap
+            emergencies={emergencies}
+            volunteerLocations={volunteers}
+            routeToEmergencyId={selectedId}
+            height={360}
+          />
+          {selectedSummary && (
+            <div className="mt-2 flex items-center justify-between text-xs bg-stone-50 border border-stone-200 rounded-lg px-3 py-2">
+              <span className="text-stone-700">
+                Showing walking routes from {volunteers.length} volunteer
+                {volunteers.length === 1 ? "" : "s"} to{" "}
+                <span className="font-semibold">
+                  {selectedSummary.type === "major" ? "Major" : "Minor"} ·{" "}
+                  {selectedSummary.creatorName}
+                </span>
+                {selectedSummary.address ? ` (${selectedSummary.address})` : ""}.
+              </span>
+              <button
+                onClick={() => setSelectedId(null)}
+                className="text-stone-600 hover:text-stone-900 font-semibold"
+              >
+                Clear routes
+              </button>
+            </div>
+          )}
         </div>
+
+        <div className="mb-3 inline-flex rounded-lg border border-stone-200 bg-white p-1 text-xs font-semibold">
+          <button
+            onClick={() => setTab("active")}
+            className={`px-3 py-1.5 rounded-md ${tab === "active" ? "bg-stone-900 text-white" : "text-stone-600 hover:text-stone-900"}`}
+          >
+            Active ({active.length})
+          </button>
+          <button
+            onClick={() => setTab("history")}
+            className={`px-3 py-1.5 rounded-md ${tab === "history" ? "bg-stone-900 text-white" : "text-stone-600 hover:text-stone-900"}`}
+          >
+            History ({history.length})
+          </button>
+        </div>
+
         <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
-          {sorted.length === 0 ? (
-            <p className="px-6 py-8 text-sm text-stone-500">No emergencies on record.</p>
+          {visible.length === 0 ? (
+            <p className="px-6 py-8 text-sm text-stone-500">
+              {tab === "active"
+                ? "No active emergencies right now."
+                : "No deactivated or resolved emergencies yet."}
+            </p>
           ) : (
             <ul className="divide-y divide-stone-100">
-              {sorted.map((e) => (
-                <li key={e.id} className="px-6 py-4">
-                  <div className="flex items-center gap-2 flex-wrap text-sm">
-                    {e.status === "active" ? (
-                      <StatusBadge
-                        kind={e.type === "major" ? "live-major" : "live-minor"}
-                      />
-                    ) : (
-                      <StatusBadge kind={e.status as "deactivated" | "resolved"} />
-                    )}
-                    <span className="font-semibold text-stone-900">{e.creatorName}</span>
-                    <span className="text-xs text-stone-500">({e.creatorRole})</span>
-                  </div>
-                  <p className="text-xs text-stone-600 mt-1">
-                    {e.address || "Unknown address"}
-                  </p>
-                  {e.description && (
-                    <p className="text-xs text-stone-700 mt-1">{e.description}</p>
-                  )}
-                  {e.responseStats && (
-                    <p className="text-xs text-stone-500 mt-1">
-                      {e.responseStats.accepted} accepted · {e.responseStats.arrived} arrived ·{" "}
-                      {e.responseStats.declined} declined
+              {visible.map((e) => {
+                const isActive = e.status === "active";
+                const isSelected = selectedId === e.id;
+                return (
+                  <li
+                    key={e.id}
+                    onClick={
+                      isActive
+                        ? () => setSelectedId(isSelected ? null : e.id)
+                        : undefined
+                    }
+                    className={`px-6 py-4 ${isActive ? "cursor-pointer" : ""} ${
+                      isSelected
+                        ? "bg-amber-50 border-l-4 border-l-[hsl(var(--primary))]"
+                        : isActive
+                          ? "hover:bg-stone-50"
+                          : ""
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 flex-wrap text-sm">
+                      {isActive ? (
+                        <StatusBadge
+                          kind={e.type === "major" ? "live-major" : "live-minor"}
+                        />
+                      ) : (
+                        <StatusBadge kind={e.status as "deactivated" | "resolved"} />
+                      )}
+                      <span className="font-semibold text-stone-900">{e.creatorName}</span>
+                      <span className="text-xs text-stone-500">({e.creatorRole})</span>
+                      {isSelected && (
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-[hsl(var(--primary))]">
+                          Routes shown
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-stone-600 mt-1">
+                      {e.address || "Unknown address"}
                     </p>
-                  )}
-                </li>
-              ))}
+                    {e.description && (
+                      <p className="text-xs text-stone-700 mt-1">{e.description}</p>
+                    )}
+                    {e.responseStats && (
+                      <p className="text-xs text-stone-500 mt-1">
+                        {e.responseStats.accepted} accepted · {e.responseStats.arrived} arrived ·{" "}
+                        {e.responseStats.declined} declined
+                      </p>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>

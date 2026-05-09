@@ -12,7 +12,7 @@ import {
   AdminCreateUserBody,
   AdminCreateUserResponse,
 } from "@workspace/api-zod";
-import { requireAdmin, sendError } from "../lib/middleware";
+import { requireAdmin, requireReviewerOrHigher, sendError } from "../lib/middleware";
 
 const router: IRouter = Router();
 
@@ -89,7 +89,7 @@ router.post("/admin/users", requireAdmin, async (req, res) => {
   }
 });
 
-router.get("/admin/volunteer-locations", requireAdmin, async (req, res) => {
+router.get("/admin/volunteer-locations", requireReviewerOrHigher, async (req, res) => {
   try {
     const rows = await db
       .select({
